@@ -1,0 +1,13 @@
+falkordb
+mcp
+pydantic>=2
+pydantic-settings
+fastapi
+uvicorn[standard]
+sse-starlette
+google-genai
+pytest
+pytest-asyncio
+httpx
+pyyaml
+ruff
