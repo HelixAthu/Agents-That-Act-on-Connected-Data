@@ -1,0 +1,42 @@
+[
+  {
+    "id": "db-user-billing",
+    "name": "User Billing DB",
+    "type": "postgres",
+    "contains_pii": true,
+    "region": "ap-south-1",
+    "criticality": "high"
+  },
+  {
+    "id": "db-customer-profile",
+    "name": "Customer Profile DB",
+    "type": "postgres",
+    "contains_pii": true,
+    "region": "ap-south-1",
+    "criticality": "high"
+  },
+  {
+    "id": "db-orders",
+    "name": "Orders DB",
+    "type": "postgres",
+    "contains_pii": false,
+    "region": "ap-south-1",
+    "criticality": "high"
+  },
+  {
+    "id": "db-catalog",
+    "name": "Catalog DB",
+    "type": "postgres",
+    "contains_pii": false,
+    "region": "ap-south-1",
+    "criticality": "medium"
+  },
+  {
+    "id": "db-analytics",
+    "name": "Analytics DB",
+    "type": "postgres",
+    "contains_pii": false,
+    "region": "ap-south-1",
+    "criticality": "low"
+  }
+]

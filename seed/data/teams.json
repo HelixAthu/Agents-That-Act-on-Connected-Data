@@ -1,0 +1,32 @@
+[
+  {
+    "id": "team-payments",
+    "name": "Payments",
+    "slack_channel": "#payments-oncall",
+    "email": "payments@example.test"
+  },
+  {
+    "id": "team-platform",
+    "name": "Platform",
+    "slack_channel": "#platform-oncall",
+    "email": "platform@example.test"
+  },
+  {
+    "id": "team-commerce",
+    "name": "Commerce",
+    "slack_channel": "#commerce-oncall",
+    "email": "commerce@example.test"
+  },
+  {
+    "id": "team-experience",
+    "name": "Experience",
+    "slack_channel": "#experience-oncall",
+    "email": "experience@example.test"
+  },
+  {
+    "id": "team-data",
+    "name": "Data",
+    "slack_channel": "#data-oncall",
+    "email": "data@example.test"
+  }
+]

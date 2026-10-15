@@ -1,0 +1,38 @@
+[
+  {
+    "id": "role-storage-manager",
+    "name": "Storage Manager",
+    "permission_level": "medium",
+    "is_admin": false
+  },
+  {
+    "id": "role-data-admin",
+    "name": "Data Admin",
+    "permission_level": "high",
+    "is_admin": true
+  },
+  {
+    "id": "role-readonly-analytics",
+    "name": "Readonly Analytics",
+    "permission_level": "low",
+    "is_admin": false
+  },
+  {
+    "id": "role-app-default",
+    "name": "App Default Role",
+    "permission_level": "low",
+    "is_admin": false
+  },
+  {
+    "id": "role-billing-writer",
+    "name": "Billing Writer",
+    "permission_level": "medium",
+    "is_admin": false
+  },
+  {
+    "id": "role-support-agent",
+    "name": "Support Agent",
+    "permission_level": "low",
+    "is_admin": false
+  }
+]

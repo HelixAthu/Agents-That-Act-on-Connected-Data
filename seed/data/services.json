@@ -1,0 +1,202 @@
+[
+  {
+    "id": "svc-web-portal",
+    "name": "Web Portal",
+    "tier": 1,
+    "customer_facing": true,
+    "internet_exposed": true,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-experience"
+  },
+  {
+    "id": "svc-mobile-api",
+    "name": "Mobile API",
+    "tier": 1,
+    "customer_facing": true,
+    "internet_exposed": true,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-experience"
+  },
+  {
+    "id": "svc-admin-portal",
+    "name": "Admin Portal",
+    "tier": 1,
+    "customer_facing": true,
+    "internet_exposed": true,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-experience"
+  },
+  {
+    "id": "svc-partner-api",
+    "name": "Partner API",
+    "tier": 1,
+    "customer_facing": true,
+    "internet_exposed": true,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-experience"
+  },
+  {
+    "id": "svc-checkout-ui",
+    "name": "Checkout UI",
+    "tier": 1,
+    "customer_facing": true,
+    "internet_exposed": true,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-payments"
+  },
+  {
+    "id": "svc-payments-gateway",
+    "name": "Payments Gateway",
+    "tier": 1,
+    "customer_facing": true,
+    "internet_exposed": true,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-payments"
+  },
+  {
+    "id": "svc-order",
+    "name": "Order Service",
+    "tier": 2,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-commerce"
+  },
+  {
+    "id": "svc-billing",
+    "name": "Billing Service",
+    "tier": 2,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-payments"
+  },
+  {
+    "id": "svc-inventory",
+    "name": "Inventory Service",
+    "tier": 2,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-commerce"
+  },
+  {
+    "id": "svc-catalog",
+    "name": "Catalog Service",
+    "tier": 2,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-commerce"
+  },
+  {
+    "id": "svc-user-profile",
+    "name": "User Profile Service",
+    "tier": 2,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-data"
+  },
+  {
+    "id": "svc-recommendation",
+    "name": "Recommendation Service",
+    "tier": 2,
+    "customer_facing": true,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-data"
+  },
+  {
+    "id": "svc-search",
+    "name": "Search Service",
+    "tier": 2,
+    "customer_facing": true,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-commerce"
+  },
+  {
+    "id": "svc-notification",
+    "name": "Notification Service",
+    "tier": 2,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-commerce"
+  },
+  {
+    "id": "svc-reporting",
+    "name": "Reporting Service",
+    "tier": 2,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-data"
+  },
+  {
+    "id": "svc-auth",
+    "name": "Auth Service",
+    "tier": 3,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-platform"
+  },
+  {
+    "id": "svc-config",
+    "name": "Config Service",
+    "tier": 3,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-platform"
+  },
+  {
+    "id": "svc-audit-log",
+    "name": "Audit Log Service",
+    "tier": 3,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-platform"
+  },
+  {
+    "id": "svc-session-cache",
+    "name": "Session Cache",
+    "tier": 3,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-platform"
+  },
+  {
+    "id": "svc-email-worker",
+    "name": "Email Worker",
+    "tier": 3,
+    "customer_facing": false,
+    "internet_exposed": false,
+    "environment": "prod",
+    "status": "HEALTHY",
+    "owner": "team-platform"
+  }
+]
