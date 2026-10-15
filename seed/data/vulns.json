@@ -1,0 +1,47 @@
+[
+  {
+    "id": "vuln-001",
+    "cve": "CVE-2026-9901",
+    "severity": "critical",
+    "cvss": 9.8,
+    "exploitable": true,
+    "title": "Remote Code Execution in Payments Gateway",
+    "affects": "svc-payments-gateway"
+  },
+  {
+    "id": "vuln-002",
+    "cve": "CVE-2026-1177",
+    "severity": "medium",
+    "cvss": 5.4,
+    "exploitable": false,
+    "title": "Open Redirect in Web Portal",
+    "affects": "svc-web-portal"
+  },
+  {
+    "id": "vuln-003",
+    "cve": "CVE-2026-2203",
+    "severity": "high",
+    "cvss": 7.5,
+    "exploitable": false,
+    "title": "ReDoS in Search Query Parser",
+    "affects": "svc-search"
+  },
+  {
+    "id": "vuln-004",
+    "cve": "CVE-2026-3350",
+    "severity": "low",
+    "cvss": 3.1,
+    "exploitable": false,
+    "title": "Information Disclosure in Email Worker",
+    "affects": "svc-email-worker"
+  },
+  {
+    "id": "vuln-005",
+    "cve": "CVE-2026-4418",
+    "severity": "high",
+    "cvss": 8.1,
+    "exploitable": true,
+    "title": "Config Service SSRF",
+    "affects": "svc-config"
+  }
+]

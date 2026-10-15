@@ -1,0 +1,641 @@
+{
+  "depends_on": [
+    {
+      "src": "svc-web-portal",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-auth",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-web-portal",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-catalog",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-web-portal",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-search",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-web-portal",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-recommendation",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-web-portal",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-checkout-ui",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-mobile-api",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-auth",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-mobile-api",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-catalog",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-mobile-api",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-order",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-mobile-api",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-user-profile",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-mobile-api",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-recommendation",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-admin-portal",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-auth",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-admin-portal",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-reporting",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-admin-portal",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-inventory",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-admin-portal",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-user-profile",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-partner-api",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-auth",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-partner-api",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-catalog",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-partner-api",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-order",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-checkout-ui",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-payments-gateway",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-checkout-ui",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-order",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-checkout-ui",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-auth",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-payments-gateway",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-billing",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-payments-gateway",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-order",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-payments-gateway",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-auth",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-payments-gateway",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-notification",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-order",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-inventory",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-order",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-billing",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-order",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-order",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-notification",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-billing",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-billing",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-audit-log",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-inventory",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-inventory",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-catalog",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-catalog",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-catalog",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-session-cache",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-user-profile",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-auth",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-user-profile",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-recommendation",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-catalog",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-recommendation",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-user-profile",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-recommendation",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-search",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-catalog",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-search",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-notification",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-email-worker",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-notification",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-reporting",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-billing",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-reporting",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-order",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-reporting",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-auth",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-auth",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-session-cache",
+      "critical": true,
+      "isolated": false
+    },
+    {
+      "src": "svc-auth",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-audit-log",
+      "critical": false,
+      "isolated": false
+    },
+    {
+      "src": "svc-email-worker",
+      "rel": "DEPENDS_ON",
+      "dst": "svc-config",
+      "critical": true,
+      "isolated": false
+    }
+  ],
+  "connects_to": [
+    {
+      "src": "svc-billing",
+      "rel": "CONNECTS_TO",
+      "dst": "db-user-billing",
+      "access": "rw",
+      "isolated": false
+    },
+    {
+      "src": "svc-user-profile",
+      "rel": "CONNECTS_TO",
+      "dst": "db-customer-profile",
+      "access": "rw",
+      "isolated": false
+    },
+    {
+      "src": "svc-order",
+      "rel": "CONNECTS_TO",
+      "dst": "db-orders",
+      "access": "rw",
+      "isolated": false
+    },
+    {
+      "src": "svc-catalog",
+      "rel": "CONNECTS_TO",
+      "dst": "db-catalog",
+      "access": "rw",
+      "isolated": false
+    },
+    {
+      "src": "svc-reporting",
+      "rel": "CONNECTS_TO",
+      "dst": "db-analytics",
+      "access": "ro",
+      "isolated": false
+    },
+    {
+      "src": "svc-recommendation",
+      "rel": "CONNECTS_TO",
+      "dst": "db-analytics",
+      "access": "ro",
+      "isolated": false
+    }
+  ],
+  "assumes_role": [
+    {
+      "src": "svc-payments-gateway",
+      "rel": "ASSUMES_ROLE",
+      "dst": "role-storage-manager",
+      "isolated": false
+    },
+    {
+      "src": "svc-billing",
+      "rel": "ASSUMES_ROLE",
+      "dst": "role-billing-writer",
+      "isolated": false
+    },
+    {
+      "src": "svc-reporting",
+      "rel": "ASSUMES_ROLE",
+      "dst": "role-readonly-analytics",
+      "isolated": false
+    },
+    {
+      "src": "svc-user-profile",
+      "rel": "ASSUMES_ROLE",
+      "dst": "role-app-default",
+      "isolated": false
+    },
+    {
+      "src": "svc-order",
+      "rel": "ASSUMES_ROLE",
+      "dst": "role-app-default",
+      "isolated": false
+    },
+    {
+      "src": "svc-admin-portal",
+      "rel": "ASSUMES_ROLE",
+      "dst": "role-support-agent",
+      "isolated": false
+    }
+  ],
+  "can_assume": [
+    {
+      "src": "role-storage-manager",
+      "rel": "CAN_ASSUME",
+      "dst": "role-data-admin",
+      "isolated": false
+    },
+    {
+      "src": "role-support-agent",
+      "rel": "CAN_ASSUME",
+      "dst": "role-readonly-analytics",
+      "isolated": false
+    }
+  ],
+  "can_access": [
+    {
+      "src": "role-data-admin",
+      "rel": "CAN_ACCESS",
+      "dst": "db-customer-profile",
+      "level": "admin",
+      "isolated": false
+    },
+    {
+      "src": "role-data-admin",
+      "rel": "CAN_ACCESS",
+      "dst": "db-orders",
+      "level": "admin",
+      "isolated": false
+    },
+    {
+      "src": "role-billing-writer",
+      "rel": "CAN_ACCESS",
+      "dst": "db-user-billing",
+      "level": "write",
+      "isolated": false
+    },
+    {
+      "src": "role-readonly-analytics",
+      "rel": "CAN_ACCESS",
+      "dst": "db-analytics",
+      "level": "read",
+      "isolated": false
+    },
+    {
+      "src": "role-app-default",
+      "rel": "CAN_ACCESS",
+      "dst": "db-orders",
+      "level": "write",
+      "isolated": false
+    }
+  ],
+  "owns": [
+    {
+      "src": "team-experience",
+      "rel": "OWNS",
+      "dst": "svc-web-portal",
+      "isolated": false
+    },
+    {
+      "src": "team-experience",
+      "rel": "OWNS",
+      "dst": "svc-mobile-api",
+      "isolated": false
+    },
+    {
+      "src": "team-experience",
+      "rel": "OWNS",
+      "dst": "svc-admin-portal",
+      "isolated": false
+    },
+    {
+      "src": "team-experience",
+      "rel": "OWNS",
+      "dst": "svc-partner-api",
+      "isolated": false
+    },
+    {
+      "src": "team-payments",
+      "rel": "OWNS",
+      "dst": "svc-checkout-ui",
+      "isolated": false
+    },
+    {
+      "src": "team-payments",
+      "rel": "OWNS",
+      "dst": "svc-payments-gateway",
+      "isolated": false
+    },
+    {
+      "src": "team-commerce",
+      "rel": "OWNS",
+      "dst": "svc-order",
+      "isolated": false
+    },
+    {
+      "src": "team-payments",
+      "rel": "OWNS",
+      "dst": "svc-billing",
+      "isolated": false
+    },
+    {
+      "src": "team-commerce",
+      "rel": "OWNS",
+      "dst": "svc-inventory",
+      "isolated": false
+    },
+    {
+      "src": "team-commerce",
+      "rel": "OWNS",
+      "dst": "svc-catalog",
+      "isolated": false
+    },
+    {
+      "src": "team-data",
+      "rel": "OWNS",
+      "dst": "svc-user-profile",
+      "isolated": false
+    },
+    {
+      "src": "team-data",
+      "rel": "OWNS",
+      "dst": "svc-recommendation",
+      "isolated": false
+    },
+    {
+      "src": "team-commerce",
+      "rel": "OWNS",
+      "dst": "svc-search",
+      "isolated": false
+    },
+    {
+      "src": "team-commerce",
+      "rel": "OWNS",
+      "dst": "svc-notification",
+      "isolated": false
+    },
+    {
+      "src": "team-data",
+      "rel": "OWNS",
+      "dst": "svc-reporting",
+      "isolated": false
+    },
+    {
+      "src": "team-platform",
+      "rel": "OWNS",
+      "dst": "svc-auth",
+      "isolated": false
+    },
+    {
+      "src": "team-platform",
+      "rel": "OWNS",
+      "dst": "svc-config",
+      "isolated": false
+    },
+    {
+      "src": "team-platform",
+      "rel": "OWNS",
+      "dst": "svc-audit-log",
+      "isolated": false
+    },
+    {
+      "src": "team-platform",
+      "rel": "OWNS",
+      "dst": "svc-session-cache",
+      "isolated": false
+    },
+    {
+      "src": "team-platform",
+      "rel": "OWNS",
+      "dst": "svc-email-worker",
+      "isolated": false
+    }
+  ],
+  "affects": [
+    {
+      "src": "vuln-001",
+      "rel": "AFFECTS",
+      "dst": "svc-payments-gateway",
+      "isolated": false
+    },
+    {
+      "src": "vuln-002",
+      "rel": "AFFECTS",
+      "dst": "svc-web-portal",
+      "isolated": false
+    },
+    {
+      "src": "vuln-003",
+      "rel": "AFFECTS",
+      "dst": "svc-search",
+      "isolated": false
+    },
+    {
+      "src": "vuln-004",
+      "rel": "AFFECTS",
+      "dst": "svc-email-worker",
+      "isolated": false
+    },
+    {
+      "src": "vuln-005",
+      "rel": "AFFECTS",
+      "dst": "svc-config",
+      "isolated": false
+    }
+  ]
+}
