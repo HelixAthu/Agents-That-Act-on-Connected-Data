@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Film } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,12 +12,13 @@ import { useIncidentStream } from "@/hooks/useIncidentStream";
 import { resetGraph } from "@/lib/api";
 
 /**
- * Root component rendering the incident response workspace with live graph highlighting and reporting.
+ * Root component rendering the incident response workspace with live graph highlighting, replays and reporting.
  */
 export default function App(): JSX.Element {
   const {
     state: incidentState,
     startIncident,
+    startReplay,
     approve,
     rollback,
     reset: resetStream,
@@ -24,6 +26,7 @@ export default function App(): JSX.Element {
 
   const [resetting, setResetting] = useState<boolean>(false);
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
+  const [isReplayMode, setIsReplayMode] = useState<boolean>(false);
 
   const handleReset = async () => {
     try {
@@ -40,40 +43,54 @@ export default function App(): JSX.Element {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-      {/* Left Column: Scenarios & Trace Feed */}
-      <aside className="w-96 flex-shrink-0 border-r border-border p-4 flex flex-col gap-4">
+      {/* Left Column: Scenarios, Replay Toggle & Trace Feed */}
+      <aside className="w-96 flex-shrink-0 border-r border-border p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold tracking-tight">Blast Radius</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight">Blast Radius</h1>
+            <Badge variant="outline" className="text-[10px]">v0.3-ui</Badge>
+          </div>
           <Badge variant={incidentState.status === "running" ? "default" : "outline"}>
             {incidentState.status.toUpperCase()}
           </Badge>
         </div>
 
+        {/* Replay Mode Toggle */}
+        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <Film className="h-3.5 w-3.5 text-purple-400" />
+            <span>Replay Mode (600ms)</span>
+          </div>
+          <Button
+            variant={isReplayMode ? "default" : "outline"}
+            size="sm"
+            className="h-6 text-[10px] px-2.5 font-semibold"
+            onClick={() => setIsReplayMode((prev) => !prev)}
+            disabled={incidentState.status === "running"}
+          >
+            {isReplayMode ? "ON" : "OFF"}
+          </Button>
+        </div>
+
+        {/* Scenario execution triggers */}
         <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => startIncident("A", "mock", false)}
-            disabled={incidentState.status === "running"}
-          >
-            Scenario A
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => startIncident("B", "mock", false)}
-            disabled={incidentState.status === "running"}
-          >
-            Scenario B
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => startIncident("C", "mock", false)}
-            disabled={incidentState.status === "running"}
-          >
-            Scenario C
-          </Button>
+          {(["A", "B", "C"] as const).map((scId) => (
+            <Button
+              key={scId}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (isReplayMode) {
+                  startReplay(scId.toLowerCase());
+                } else {
+                  startIncident(scId, "mock", false);
+                }
+              }}
+              disabled={incidentState.status === "running"}
+            >
+              {isReplayMode ? `Replay ${scId}` : `Scenario ${scId}`}
+            </Button>
+          ))}
         </div>
 
         <Button

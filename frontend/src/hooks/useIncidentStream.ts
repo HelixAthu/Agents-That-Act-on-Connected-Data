@@ -1,7 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { AgentEvent, IncidentState } from "@/types";
 import { createInitialIncidentState, reduceAgentEvent } from "@/lib/eventReducer";
-import { createIncident, approveAction as apiApproveAction, rollbackAction as apiRollbackAction } from "@/lib/api";
+import {
+  createIncident,
+  approveAction as apiApproveAction,
+  rollbackAction as apiRollbackAction,
+  fetchReplay,
+} from "@/lib/api";
 
 /**
  * Custom hook managing real-time SSE event consumption and incident response state.
@@ -107,9 +112,29 @@ export function useIncidentStream() {
     [cleanupStream, dispatchEvent]
   );
 
+  const startReplay = useCallback(
+    async (scenario: string, intervalMs = 600) => {
+      cleanupStream();
+      setState(createInitialIncidentState());
+      try {
+        const events = await fetchReplay(scenario);
+        replayEvents(events, intervalMs);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to load replay";
+        setState((prevState) => ({
+          ...prevState,
+          status: "error",
+          error: message,
+        }));
+      }
+    },
+    [cleanupStream, replayEvents]
+  );
+
   return {
     state,
     startIncident,
+    startReplay,
     approve,
     rollback,
     reset,

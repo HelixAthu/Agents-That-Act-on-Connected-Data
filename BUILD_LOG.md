@@ -429,7 +429,7 @@ Log of task execution, command outputs, and commit hashes for verification.
 
 ---
 
-## T10. Frontend Scaffold & Graph Layout
+## T10 to T12. Day 3 Frontend (UI, Canvas, Events & Replay)
 
 - **Commits:**
   - `chore(web): scaffold vite, tailwind and shadcn`
@@ -440,9 +440,22 @@ Log of task execution, command outputs, and commit hashes for verification.
   - `feat(web): trace feed with expandable cypher`
   - `feat(web): risk panel and approval card`
   - `feat(web): final report, rollback and export`
-- **Final Report & Rollback Details:**
-  - FinalReportPanel showing summary, findings with evidence references linking to trace feed items
-  - Containment verification metrics (targets before vs after)
-  - Action table with Rollback controls invoking `POST /actions/{id}/rollback`
-  - JSON report export button downloading timestamped incident reports
-- **Status:** IN_PROGRESS
+  - `feat(web): replay mode`
+- **Frontend Architecture & Features:**
+  - Three-column dark mode layout: Scenarios/Trace feed (left), React Flow canvas (center), Risk/Approval/Report (right)
+  - Semantic ranking layout: Tier 1 -> Tier 2 -> Tier 3 -> IAMRole -> Database (last rank) with Dagre layout
+  - Custom memoized node components: ServiceNode (T1-T3, CF, PII, VULN), DatabaseNode (PII, technology), IAMRoleNode (ADMIN, max session)
+  - Custom smoothstep edge component with dynamic attack-path (red animated), isolated (dashed grey) and normal states
+  - Pure state reducer `reduceAgentEvent` handling real-time SSE stream events and replay feeds
+  - Live path highlighting: inspect pulse rings, attack path red animated edges, action node isolation, verification pruning
+  - Trace feed: autoscrolling audit log, contextual icons, latency metrics, and expandable Cypher query drawers
+  - Risk assessment: composite risk gauge + breakdown bars for all 4 components (Severity, PII, Blast Radius, Centrality)
+  - Human-in-the-loop: ApprovalCard with dry-run blast radius delta and `/actions/{id}/approve` execution
+  - Final report: executive summary, findings with clickable evidence refs, rollback controls, and JSON report export
+  - Replay mode: toggle loading `/replays/{scenario}` and stepping through reducer at 600ms per event
+- **Acceptance Tests (Vitest):**
+  - All 8 unit test suites (28 tests) passing 100%
+  - Pure reducer assertion against canonical `scenario_a.jsonl`: final risk = 0.828, final isolated = {svc-payments-gateway}, seen approval_required = true
+  - TypeScript strict compilation (`tsc`) and production Vite build verified
+- **Tag:** `v0.3-ui`
+- **Status:** DONE
