@@ -285,9 +285,55 @@ Log of task execution, command outputs, and commit hashes for verification.
 - **Commits:**
   - `21ff5a7`: `feat(agent): event models and in-memory event bus`
   - `ac23e23`: `feat(agent): mcp bridge client`
-  - `feat(agent): scripted mock agent for scenarios A, B and C`
+  - `22e31db`: `feat(agent): scripted mock agent for scenarios A, B and C`
+  - `feat: incident runner CLI and recorded replays`
 - **Acceptance Output:**
   ```bash
+  $ python scripts/run_incident.py --scenario A --mode mock --auto-approve
+  ================================================================================
+  FINAL INCIDENT REPORT SUMMARY
+  ================================================================================
+  Summary         : Critical exploit on svc-payments-gateway fully contained via role revocation and node isolation.
+  Risk Score      : 0.828
+  Impacted Svc    : 4 (1 customer-facing)
+  Owner Teams     : team-payments
+  Actions Taken   : 2
+    - [EXECUTED] REVOKE_ROLE -> svc-payments-gateway|role-storage-manager (policy=AUTO)
+    - [EXECUTED] ISOLATE_NODE -> svc-payments-gateway (policy=APPROVAL_REQUIRED)
+  Verification    : ['db-customer-profile', 'db-user-billing'] -> []
+  Tool Calls      : 12 calls recorded
+  ================================================================================
+  [REPLAY] Recorded 58 events saved to: replays/scenario_a.jsonl
+
+  $ python scripts/run_incident.py --scenario B --mode mock --auto-approve
+  ================================================================================
+  FINAL INCIDENT REPORT SUMMARY
+  ================================================================================
+  Summary         : Database outage on db-orders causing cascading degradation across 8 upstream services.
+  Risk Score      : 0.450
+  Impacted Svc    : 8 (6 customer-facing)
+  Owner Teams     : team-commerce, team-data, team-experience, team-payments
+  Actions Taken   : 0
+  Verification    : [] -> []
+  Tool Calls      : 5 calls recorded
+  ================================================================================
+  [REPLAY] Recorded 22 events saved to: replays/scenario_b.jsonl
+
+  $ python scripts/run_incident.py --scenario C --mode mock --auto-approve
+  ================================================================================
+  FINAL INCIDENT REPORT SUMMARY
+  ================================================================================
+  Summary         : False alarm on svc-config: isolation denied due to zero PII exposure and high blast radius.
+  Risk Score      : 0.513
+  Impacted Svc    : 17 (0 customer-facing)
+  Owner Teams     : team-platform
+  Actions Taken   : 1
+    - [PROPOSED] ISOLATE_NODE -> svc-config (policy=DENIED)
+  Verification    : [] -> []
+  Tool Calls      : 6 calls recorded
+  ================================================================================
+  [REPLAY] Recorded 28 events saved to: replays/scenario_c.jsonl
+
   $ pytest -v tests/test_agent_mock.py
   ============================= test session starts ==============================
   collected 4 items
@@ -297,14 +343,15 @@ Log of task execution, command outputs, and commit hashes for verification.
   tests/test_agent_mock.py::test_mock_agent_scenario_c_false_alarm_isolation_denied PASSED [ 75%]
   tests/test_agent_mock.py::test_mock_agent_scenario_a_approval_handler_flow PASSED [100%]
 
-  ============================== 4 passed in 1.34s ===============================
+  ============================== 4 passed in 2.05s ===============================
   ```
 - **Golden Values Asserted:**
-  - Scenario A: Containment eliminates all attack paths (`verification.targets_after == []`).
-  - Scenario B: Correctly identifies cascading outage (8 impacted services, 4 owner teams) without taking containment actions.
-  - Scenario C: Propose containment evaluates to `DENIED`; no graph mutations except audit records.
+  - Scenario A: Containment eliminates all attack paths (`verification.targets_after == []`), recorded in `replays/scenario_a.jsonl`.
+  - Scenario B: Correctly identifies cascading outage (8 impacted services, 4 owner teams) without taking containment actions, recorded in `replays/scenario_b.jsonl`.
+  - Scenario C: Propose containment evaluates to `DENIED`; no graph mutations except audit records, recorded in `replays/scenario_c.jsonl`.
   - Graph Integrity: Every single node ID emitted in `graph_visit` events is verified to exist in the FalkorDB graph.
-- **Status:** IN PROGRESS (Commits 23, 24, 25 completed; CLI runner and replays next)
+- **Status:** DONE
+
 
 
 
