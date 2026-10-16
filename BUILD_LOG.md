@@ -120,7 +120,7 @@ Log of task execution, command outputs, and commit hashes for verification.
   - `12ef917`: `feat(queries): failure impact traversal`
   - `561cbe7`: `feat(queries): attacker paths to PII databases`
   - `ff186b2`: `feat(queries): criticality ranking and containment writes`
-  - Current: `test(queries): golden results G2 to G7`
+  - `612d176`: `test(queries): golden results G2 to G7`
 - **Acceptance Output:**
   ```bash
   $ pytest -v tests/test_queries.py
@@ -141,4 +141,59 @@ Log of task execution, command outputs, and commit hashes for verification.
 - **Golden Values Asserted:** G2 (attack paths), G3 (containment & rollback), G4 (svc-config blast radius), G5 (db-orders failure impact), G6 (svc-config attack paths), G7 (criticality ranking).
 - **Status:** DONE
 
+---
 
+## T5. MCP Read Tools
+
+- **Commits:**
+  - `dcd9c62`: `feat(mcp): server skeleton with component context tool`
+  - `c072971`: `feat(mcp): impact, attack-path, ranking and read-only cypher tools`
+  - Tag: `v0.1-graph`
+- **Acceptance Output:**
+  ```bash
+  $ pytest -v tests/test_mcp_tools.py
+  ============================= test session starts ==============================
+  collected 11 items
+
+  tests/test_mcp_tools.py::test_get_component_context_success PASSED       [  9%]
+  tests/test_mcp_tools.py::test_get_component_context_not_found PASSED     [ 18%]
+  tests/test_mcp_tools.py::test_get_component_context_invalid_input PASSED [ 27%]
+  tests/test_mcp_tools.py::test_get_failure_impact_tool PASSED             [ 36%]
+  tests/test_mcp_tools.py::test_get_failure_impact_invalid_hops PASSED     [ 45%]
+  tests/test_mcp_tools.py::test_find_attack_paths_tool PASSED              [ 54%]
+  tests/test_mcp_tools.py::test_find_attack_paths_invalid_hops PASSED      [ 63%]
+  tests/test_mcp_tools.py::test_rank_critical_components_tool PASSED       [ 72%]
+  tests/test_mcp_tools.py::test_rank_critical_components_invalid_top_n PASSED [ 81%]
+  tests/test_mcp_tools.py::test_run_readonly_cypher_success PASSED         [ 90%]
+  tests/test_mcp_tools.py::test_run_readonly_cypher_policy_denied PASSED   [100%]
+
+  ============================== 11 passed in 0.88s ==============================
+  ```
+- **Status:** DONE
+
+---
+
+## T4. Scoring and Policy (Part 1: Scoring)
+
+- **Commits:**
+  - `feat: deterministic risk scoring with tests`
+- **Acceptance Output:**
+  ```bash
+  $ pytest -v tests/test_scoring.py
+  ============================= test session starts ==============================
+  collected 9 items
+
+  tests/test_scoring.py::test_compute_severity_edge_cases PASSED           [ 11%]
+  tests/test_scoring.py::test_compute_pii_score_edge_cases PASSED          [ 22%]
+  tests/test_scoring.py::test_compute_blast_score_edge_cases PASSED        [ 33%]
+  tests/test_scoring.py::test_compute_centrality_score_edge_cases PASSED   [ 44%]
+  tests/test_scoring.py::test_calculate_risk_weights PASSED                [ 55%]
+  tests/test_scoring.py::test_evaluate_risk_pure_output PASSED             [ 66%]
+  tests/test_scoring.py::test_g8_payments_gateway_risk_score PASSED        [ 77%]
+  tests/test_scoring.py::test_g8_config_service_risk_score PASSED          [ 88%]
+  tests/test_scoring.py::test_compute_target_risk_error_handling PASSED    [100%]
+
+  ============================== 9 passed in 0.35s ===============================
+  ```
+- **Golden Values Asserted:** G8 risk scores (svc-payments-gateway ≈ 0.828, svc-config ≈ 0.514, within ±0.003).
+- **Status:** IN PROGRESS (scoring complete, policy next)
