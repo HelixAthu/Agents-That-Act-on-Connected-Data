@@ -12,6 +12,15 @@ Q_IMPACT_ID = "Q-IMPACT"
 Q_OWNERS_ID = "Q-OWNERS"
 Q_OWNERS = "MATCH (t:Team)-[:OWNS]->(s:Service) WHERE s.id IN $ids RETURN s.id, t.id, t.name"
 
+Q_ATTACK_ID = "Q-ATTACK"
+Q_EDGES_NODES_ID = "Q-EDGES-NODES"
+Q_EDGES_NODES = "MATCH (n) RETURN n.id AS id, labels(n)[0] AS label, properties(n) AS props"
+Q_EDGES_RELS_ID = "Q-EDGES-RELS"
+Q_EDGES_RELS = (
+    "MATCH (a)-[r]->(b) WHERE labels(a)[0] IN ['Service','Database','IAMRole','Vulnerability','Team'] "
+    "RETURN a.id AS src, type(r) AS rel, b.id AS dst, properties(r) AS props"
+)
+
 
 def build_impact_query(max_hops: int = 3, critical_only: bool = False) -> str:
     """Build the reverse failure impact Cypher query with validated hop bound."""
@@ -107,4 +116,96 @@ def get_failure_impact(
         "params": {"id": target_id},
         "ms": execution_ms,
         "row_count": len(rows),
+    }
+
+
+def build_attack_query(max_hops: int = 6) -> str:
+    """Build the Cypher forward attack path query to PII databases."""
+    if not (1 <= max_hops <= 6):
+        raise ValueError(f"max_hops must be between 1 and 6, got {max_hops}")
+
+    query = (
+        "MATCH (src:Service {id: $id}), (db:Database {contains_pii: true})\n"
+        f"WITH shortestPath((src)-[:DEPENDS_ON|CONNECTS_TO|ASSUMES_ROLE|CAN_ASSUME|CAN_ACCESS*..{max_hops}]->(db)) AS p, db\n"
+        "WHERE p IS NOT NULL AND ALL(r IN relationships(p) WHERE r.isolated = false)\n"
+        "RETURN db.id AS target, length(p) AS hops,\n"
+        "       [n IN nodes(p) | n.id] AS node_ids, [r IN relationships(p) | type(r)] AS edge_types\n"
+        "ORDER BY hops"
+    )
+    return query.strip()
+
+
+def find_attack_paths(
+    source_id: str,
+    max_hops: int = 6,
+    engine: str = "fallback",
+    graph: Graph | None = None,
+) -> dict[str, Any]:
+    """Find reachable attack paths from source_id to PII databases honoring edge isolation."""
+    if not source_id or not isinstance(source_id, str):
+        raise ValueError("source_id must be a non-empty string")
+    if not (1 <= max_hops <= 6):
+        raise ValueError(f"max_hops must be between 1 and 6, got {max_hops}")
+
+    cypher_text = build_attack_query(max_hops=max_hops)
+
+    if engine == "fallback":
+        from mcp_server.pathfinder_fallback import bfs_attack_paths
+
+        paths, visited_nodes, visited_edges, elapsed_ms = bfs_attack_paths(
+            source_id=source_id,
+            max_hops=max_hops,
+            graph=graph,
+        )
+        return {
+            "source": source_id,
+            "paths": paths,
+            "engine": "fallback",
+            "node_ids": sorted(visited_nodes),
+            "edge_keys": sorted(visited_edges),
+            "query_id": Q_ATTACK_ID,
+            "cypher": cypher_text,
+            "params": {"id": source_id},
+            "ms": elapsed_ms,
+            "row_count": len(paths),
+        }
+
+    rows, elapsed_ms = run_ro(cypher_text, {"id": source_id}, graph=graph)
+    paths = []
+    visited_nodes = {source_id}
+    visited_edges = set()
+
+    for row in rows:
+        target: str = row[0]
+        hops: int = row[1]
+        node_ids: list[str] = row[2]
+        edge_types: list[str] = row[3]
+
+        visited_nodes.update(node_ids)
+        edge_keys = [
+            f"{node_ids[i]}|{edge_types[i]}|{node_ids[i + 1]}" for i in range(len(edge_types))
+        ]
+        visited_edges.update(edge_keys)
+
+        paths.append(
+            {
+                "target": target,
+                "hops": hops,
+                "node_ids": node_ids,
+                "edge_types": edge_types,
+                "edge_keys": edge_keys,
+            }
+        )
+
+    return {
+        "source": source_id,
+        "paths": paths,
+        "engine": "cypher",
+        "node_ids": sorted(visited_nodes),
+        "edge_keys": sorted(visited_edges),
+        "query_id": Q_ATTACK_ID,
+        "cypher": cypher_text,
+        "params": {"id": source_id},
+        "ms": elapsed_ms,
+        "row_count": len(paths),
     }
