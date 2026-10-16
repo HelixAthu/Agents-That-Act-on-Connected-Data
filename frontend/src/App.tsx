@@ -1,6 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { GraphCanvas } from "@/components/GraphCanvas";
 
 /**
  * Root component rendering the three-column incident response layout skeleton.
@@ -38,11 +39,8 @@ export default function App(): JSX.Element {
       </aside>
 
       {/* Center Column: Graph Canvas */}
-      <main className="flex-1 relative flex flex-col items-center justify-center p-4">
-        <div className="text-center space-y-2">
-          <p className="text-sm text-muted-foreground">Graph Canvas (React Flow + Dagre)</p>
-          <Badge variant="secondary">Ready to mount</Badge>
-        </div>
+      <main className="flex-1 relative h-full w-full overflow-hidden bg-background">
+        <GraphCanvas />
       </main>
 
       {/* Right Column: Risk & Approval Panels */}

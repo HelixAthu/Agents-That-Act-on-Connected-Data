@@ -429,14 +429,16 @@ Log of task execution, command outputs, and commit hashes for verification.
 
 ---
 
-## T10. Frontend Scaffold
+## T10. Frontend Scaffold & Graph Layout
 
 - **Commits:**
   - `chore(web): scaffold vite, tailwind and shadcn`
-- **Scaffold Details:**
+  - `feat(web): load graph and lay out with dagre`
+- **Layout & Canvas Details:**
   - Vite + React 18 + TypeScript strict bundler setup
   - Tailwind CSS with dark theme tokens and Shadcn HSL variables
   - Radix UI primitives: `@radix-ui/react-slot`, `@radix-ui/react-scroll-area`, `@radix-ui/react-tabs`
-  - React Flow (`@xyflow/react`) and Dagre (`@dagrejs/dagre`) dependencies
-  - Three-column dashboard skeleton (Trace feed, Canvas, Risk/Approval panels)
+  - React Flow (`@xyflow/react`) and Dagre (`@dagrejs/dagre`) integration
+  - Semantic ranking layout: Tier 1 -> Tier 2 -> Tier 3 -> IAMRole -> Database (last rank)
+  - Edge formatting: `src|REL|dst` with `smoothstep` routing
 - **Status:** IN_PROGRESS
