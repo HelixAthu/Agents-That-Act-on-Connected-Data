@@ -284,25 +284,28 @@ Log of task execution, command outputs, and commit hashes for verification.
 
 - **Commits:**
   - `21ff5a7`: `feat(agent): event models and in-memory event bus`
-  - `feat(agent): mcp bridge client`
+  - `ac23e23`: `feat(agent): mcp bridge client`
+  - `feat(agent): scripted mock agent for scenarios A, B and C`
 - **Acceptance Output:**
   ```bash
-  $ pytest -v tests/test_events.py tests/test_mcp_bridge.py
+  $ pytest -v tests/test_agent_mock.py
   ============================= test session starts ==============================
-  collected 8 items
+  collected 4 items
 
-  tests/test_events.py::test_event_payload_models_serialization PASSED     [ 12%]
-  tests/test_events.py::test_event_bus_sequential_numbering_and_subscribers PASSED [ 25%]
-  tests/test_events.py::test_event_bus_dump_and_load_jsonl PASSED          [ 37%]
-  tests/test_events.py::test_final_report_model_and_anti_hallucination_guard PASSED [ 50%]
-  tests/test_mcp_bridge.py::test_bridge_list_tools_returns_all_11_spec_tools PASSED [ 62%]
-  tests/test_mcp_bridge.py::test_bridge_get_tool_lookup PASSED             [ 75%]
-  tests/test_mcp_bridge.py::test_bridge_call_with_argument_normalization PASSED [ 87%]
-  tests/test_mcp_bridge.py::test_bridge_build_tool_summary_formatting PASSED [100%]
+  tests/test_agent_mock.py::test_mock_agent_scenario_a_attack_and_containment PASSED [ 25%]
+  tests/test_agent_mock.py::test_mock_agent_scenario_b_database_outage PASSED [ 50%]
+  tests/test_agent_mock.py::test_mock_agent_scenario_c_false_alarm_isolation_denied PASSED [ 75%]
+  tests/test_agent_mock.py::test_mock_agent_scenario_a_approval_handler_flow PASSED [100%]
 
-  ============================== 8 passed in 0.58s ===============================
+  ============================== 4 passed in 1.34s ===============================
   ```
-- **Status:** IN PROGRESS (Commits 23, 24 completed; mock agent scenarios and CLI next)
+- **Golden Values Asserted:**
+  - Scenario A: Containment eliminates all attack paths (`verification.targets_after == []`).
+  - Scenario B: Correctly identifies cascading outage (8 impacted services, 4 owner teams) without taking containment actions.
+  - Scenario C: Propose containment evaluates to `DENIED`; no graph mutations except audit records.
+  - Graph Integrity: Every single node ID emitted in `graph_visit` events is verified to exist in the FalkorDB graph.
+- **Status:** IN PROGRESS (Commits 23, 24, 25 completed; CLI runner and replays next)
+
 
 
 

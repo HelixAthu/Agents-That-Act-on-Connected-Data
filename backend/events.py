@@ -220,24 +220,34 @@ class EventBus:
 
     def _prepare_event(
         self,
-        event_type: EventType | str,
-        data: dict[str, Any] | BaseModel,
+        event_or_type: Event | EventType | str,
+        data: dict[str, Any] | BaseModel | None = None,
     ) -> Event:
         """Internal helper to assign sequence number, timestamp, and envelope structure."""
         self._seq += 1
-        type_str: str = event_type.value if isinstance(event_type, EventType) else str(event_type)
-        data_dict: dict[str, Any] = data.model_dump() if isinstance(data, BaseModel) else dict(data)
+        if isinstance(event_or_type, Event):
+            type_str: str = event_or_type.type
+            data_dict: dict[str, Any] = dict(event_or_type.data)
+        else:
+            type_str = event_or_type.value if isinstance(event_or_type, EventType) else str(event_or_type)
+            if data is None:
+                data_dict = {}
+            elif isinstance(data, BaseModel):
+                data_dict = data.model_dump()
+            else:
+                data_dict = dict(data)
+
         now_ts: str = datetime.now(UTC).isoformat()
         return Event(seq=self._seq, ts=now_ts, type=type_str, data=data_dict)
 
     async def emit(
         self,
-        event_type: EventType | str,
-        data: dict[str, Any] | BaseModel,
+        event_or_type: Event | EventType | str,
+        data: dict[str, Any] | BaseModel | None = None,
     ) -> Event:
         """Emit an event asynchronously, assign sequence number, and broadcast to active subscriber queues."""
         async with self._lock:
-            event = self._prepare_event(event_type, data)
+            event = self._prepare_event(event_or_type, data)
             self._events.append(event)
             for queue in self._subscribers:
                 await queue.put(event)
@@ -245,11 +255,11 @@ class EventBus:
 
     def emit_sync(
         self,
-        event_type: EventType | str,
-        data: dict[str, Any] | BaseModel,
+        event_or_type: Event | EventType | str,
+        data: dict[str, Any] | BaseModel | None = None,
     ) -> Event:
         """Synchronous emit for non-async contexts or unit testing."""
-        event = self._prepare_event(event_type, data)
+        event = self._prepare_event(event_or_type, data)
         self._events.append(event)
         for queue in self._subscribers:
             queue.put_nowait(event)
