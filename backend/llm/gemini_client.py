@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -54,11 +55,18 @@ class GeminiSession(LLMSession):
                 )
             )
 
+        thinking_cfg: types.ThinkingConfig
+        if "3" in model or "flash-thinking" in model:
+            thinking_cfg = types.ThinkingConfig(thinking_level=thinking_level)
+        else:
+            budget_map: dict[str, int] = {"low": 1024, "medium": 2048, "high": 4096}
+            thinking_cfg = types.ThinkingConfig(thinking_budget=budget_map.get(thinking_level, 1024))
+
         self.config: types.GenerateContentConfig = types.GenerateContentConfig(
             system_instruction=system,
             tools=[types.Tool(function_declarations=tool_declarations)] if tool_declarations else None,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-            thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
+            thinking_config=thinking_cfg,
         )
         self.contents: list[types.Content] = []
 
@@ -128,7 +136,21 @@ class GeminiSession(LLMSession):
                 err_str = str(err).lower()
                 status_code = getattr(err, "code", getattr(err, "status_code", None))
 
-                # Never retry 400 invalid argument errors
+                # Auto-fallback if the specific model variant rejects the thinking configuration
+                if "thinking level is not supported" in err_str:
+                    logger.warning("Thinking level unsupported for %s; falling back to thinking_budget", self.model)
+                    budget_map: dict[str, int] = {"low": 1024, "medium": 2048, "high": 4096}
+                    self.config.thinking_config = types.ThinkingConfig(
+                        thinking_budget=budget_map.get(self.thinking_level, 1024)
+                    )
+                    continue
+
+                if "thinking budget is not supported" in err_str:
+                    logger.warning("Thinking budget unsupported for %s; disabling thinking_config", self.model)
+                    self.config.thinking_config = None
+                    continue
+
+                # Never retry other 400 invalid argument errors
                 if status_code == 400 or "400" in err_str or "invalid_argument" in err_str:
                     logger.error("Gemini API rejected request with 400 error: %s", err)
                     raise LLMError(f"Gemini API 400 Bad Request (non-retryable): {err}") from err
@@ -146,6 +168,12 @@ class GeminiSession(LLMSession):
                     raise LLMError(f"Gemini API call failed: {err}") from err
 
                 backoff_s: float = float(2 ** attempt)
+                delay_match = re.search(r"retry in ([\d\.]+)s", err_str)
+                if delay_match:
+                    try:
+                        backoff_s = min(float(delay_match.group(1)) + 0.5, 15.0)
+                    except ValueError:
+                        pass
                 logger.warning(
                     "Gemini API returned retryable error (%s). Retrying in %.1fs (attempt %d/%d)...",
                     err,

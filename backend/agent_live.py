@@ -415,7 +415,31 @@ class LiveAgent:
                     )
                 )
 
-            turn = await session.send_tool_results(results)
+            try:
+                turn = await session.send_tool_results(results)
+            except Exception as loop_err:
+                logger.warning(
+                    "LLM turn failed during tool result loop: %s. Emitting deterministic final report.",
+                    loop_err,
+                )
+                final_report = self._build_fallback_report(
+                    incident_id=incident_id,
+                    summary=f"Investigation concluded ({loop_err}). Actions executed and recorded.",
+                    risk_score=deterministic_risk,
+                    visited_nodes=visited_nodes,
+                    calls=recorded_tool_calls,
+                    actions=recorded_actions,
+                    targets_before=initial_attack_targets,
+                    targets_after=final_attack_targets,
+                )
+                await emit(
+                    Event(
+                        seq=0,
+                        type=EventType.FINAL_REPORT.value,
+                        data={"report": final_report.model_dump(), "incident_id": incident_id},
+                    )
+                )
+                return final_report
 
         # Parse Final Report from model response
         report_data = extract_fenced_json(turn.text)

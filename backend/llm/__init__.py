@@ -7,7 +7,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 from backend.llm.base import LLMError, LLMSession, LLMTurn, ToolCall, ToolResult, ToolSpec
 from backend.llm.fake_client import FakeSession
@@ -21,6 +21,7 @@ def make_session(
     **kwargs: Any,
 ) -> LLMSession:
     """Factory creating an LLMSession for the configured provider (gemini, fake, or anthropic)."""
+    load_dotenv(override=True)
     chosen_provider: str = (provider or os.getenv("LLM_PROVIDER", "gemini")).strip().lower()
 
     # Simplify all tool schemas before passing to LLM session
