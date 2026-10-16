@@ -484,3 +484,13 @@ Log of task execution, command outputs, and commit hashes for verification.
   - Baseline comparison documented in `evals/results.md`: G2 and G5 against flat JSON representations.
 - **Status:** DONE
 
+---
+
+## T14. Day 4 Documentation and Operational Polish
+
+- **Commits:**
+  - `docs: query reference with golden results`
+- **Reference Deliverables:**
+  - `docs/queries.md`: Complete Cypher query catalog (Q-CONTEXT, Q-IMPACT, Q-ATTACK, Q-RANK, containment mutations, audit trail), traversal mechanics, and golden results reference (G1 to G9).
+
+
