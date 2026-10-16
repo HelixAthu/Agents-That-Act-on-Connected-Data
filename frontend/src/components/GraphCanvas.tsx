@@ -113,10 +113,12 @@ export function GraphCanvas({
           isolatedNodes && isolatedNodes.has(node.id)
             ? "ISOLATED"
             : (nodeStatuses && nodeStatuses[node.id]) || node.data.status;
+        const currentProps = node.data.props as Record<string, unknown> | undefined;
 
         if (
           node.data.highlightKind === highlightKind &&
-          node.data.status === currentStatus
+          node.data.status === currentStatus &&
+          currentProps?.status === currentStatus
         ) {
           return node;
         }
@@ -127,6 +129,10 @@ export function GraphCanvas({
             ...node.data,
             highlightKind,
             status: currentStatus,
+            props: {
+              ...currentProps,
+              status: currentStatus,
+            },
           },
         };
       })
@@ -138,14 +144,14 @@ export function GraphCanvas({
     if (!highlightedEdges && !isolatedNodes && !revokedRoles) return;
     setEdges((prevEdges) =>
       prevEdges.map((edge) => {
-        const isAttackPath = Boolean(
-          highlightedEdges && highlightedEdges[edge.id] === "attack_path"
-        );
         const edgeProps = (edge.data?.props as Record<string, unknown> | undefined);
         const isIsolated = Boolean(
           edgeProps?.isolated ||
             (isolatedNodes && (isolatedNodes.has(edge.source) || isolatedNodes.has(edge.target))) ||
             (revokedRoles && (revokedRoles.has(edge.target) || revokedRoles.has(edge.id)))
+        );
+        const isAttackPath = Boolean(
+          !isIsolated && highlightedEdges && highlightedEdges[edge.id] === "attack_path"
         );
 
         const currentData = edge.data as CustomEdgeData | undefined;

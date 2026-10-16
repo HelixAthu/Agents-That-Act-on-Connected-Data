@@ -445,6 +445,8 @@ async def execute_containment(action_id: str) -> str:
 
         data: dict[str, Any] = {
             "action_id": cleaned_action_id,
+            "action": action_type,
+            "target_id": target_id,
             "status": "EXECUTED",
             "targets_after": targets_after,
             "paths_after": paths_after,

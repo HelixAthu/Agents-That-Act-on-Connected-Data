@@ -24,7 +24,7 @@ export interface IAMRoleNodeData {
 export const IAMRoleNode = React.memo(({ data, selected }: NodeProps) => {
   const nodeData = data as unknown as IAMRoleNodeData;
   const props = nodeData.props || {};
-  const status = props.status || nodeData.status || "HEALTHY";
+  const status = nodeData.status || props.status || "HEALTHY";
   const isAdmin = Boolean(props.admin_privileges);
 
   const statusClass = getNodeStatusClasses(status);

@@ -192,3 +192,9 @@ async def test_agent_live_approval_pause_and_report_parse_retry() -> None:
     verif_events = [e for e in events if e.type == "verification"]
     assert len(verif_events) >= 1
     assert "targets_after" in verif_events[0].data
+
+    # Assert executed containment action event emits specific action and target ID
+    exec_actions = [e for e in events if e.type == "action" and e.data.get("status") == "EXECUTED"]
+    assert len(exec_actions) >= 1
+    assert exec_actions[0].data["action"] == "ISOLATE_NODE"
+    assert exec_actions[0].data["target_id"] == "svc-payments-gateway"

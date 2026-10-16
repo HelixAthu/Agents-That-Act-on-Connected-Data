@@ -25,7 +25,7 @@ from backend.llm import ToolResult, ToolSpec, make_session
 from backend.llm.base import LLMSession, LLMTurn
 from backend.mcp_bridge import MCPBridge
 from backend.prompts import SYSTEM_PROMPT
-from mcp_server.queries import approve_action
+from mcp_server.queries import approve_action, get_action as fetch_action
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -320,10 +320,26 @@ class LiveAgent:
                     t_after = e_data.get("targets_after", [])
                     final_attack_targets = list(t_after)
 
+                    action_type = str(e_data.get("action", ""))
+                    target_id = str(e_data.get("target_id", ""))
+                    action_policy = "APPROVED"
+
                     # Update recorded actions
                     for ra in recorded_actions:
                         if ra.action_id == act_id:
                             ra.status = "EXECUTED"
+                            if not action_type:
+                                action_type = ra.type
+                            if not target_id:
+                                target_id = ra.target
+                            action_policy = ra.policy
+
+                    if not target_id:
+                        fetched = fetch_action(act_id)
+                        if fetched:
+                            action_type = fetched.get("type", action_type)
+                            target_id = fetched.get("target_id", target_id)
+                            action_policy = fetched.get("policy_decision", action_policy)
 
                     await emit(
                         Event(
@@ -331,10 +347,10 @@ class LiveAgent:
                             type=EventType.ACTION.value,
                             data={
                                 "action_id": act_id,
-                                "action": "CONTAINMENT",
-                                "target_id": "",
+                                "action": action_type or "ISOLATE_NODE",
+                                "target_id": target_id,
                                 "status": "EXECUTED",
-                                "policy": "APPROVED",
+                                "policy": action_policy,
                             },
                         )
                     )

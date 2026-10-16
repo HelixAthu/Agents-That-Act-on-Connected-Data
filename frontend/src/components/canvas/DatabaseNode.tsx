@@ -24,7 +24,7 @@ export interface DatabaseNodeData {
 export const DatabaseNode = React.memo(({ data, selected }: NodeProps) => {
   const nodeData = data as unknown as DatabaseNodeData;
   const props = nodeData.props || {};
-  const status = props.status || nodeData.status || "HEALTHY";
+  const status = nodeData.status || props.status || "HEALTHY";
   const containsPii = Boolean(props.contains_pii);
 
   const statusClass = getNodeStatusClasses(status);

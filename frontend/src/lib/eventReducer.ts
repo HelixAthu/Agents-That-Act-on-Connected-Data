@@ -166,9 +166,17 @@ export function reduceAgentEvent(
 
     case "action": {
       const actionData = event.data || {};
-      const actionType = String(actionData.action || actionData.type || "");
-      const targetId = String(actionData.target_id || actionData.target || "");
+      let actionType = String(actionData.action || actionData.type || "");
+      let targetId = String(actionData.target_id || actionData.target || "");
       const actionStatus = String(actionData.status || "");
+
+      // Fallback to pendingApproval details if action event omitted target_id or action type
+      if (!targetId && pendingApproval?.target_id) {
+        targetId = pendingApproval.target_id;
+      }
+      if ((!actionType || actionType === "CONTAINMENT") && pendingApproval?.action) {
+        actionType = pendingApproval.action;
+      }
 
       if (actionStatus === "EXECUTED" || actionStatus === "DENIED" || actionStatus === "ROLLED_BACK") {
         pendingApproval = null;
@@ -188,9 +196,10 @@ export function reduceAgentEvent(
       }
 
       if (actionStatus === "EXECUTED") {
-        if (actionType === "ISOLATE_NODE" || actionType.includes("ISOLATE")) {
+        if (actionType === "ISOLATE_NODE" || actionType.includes("ISOLATE") || actionType === "CONTAINMENT") {
           isolatedNodes.add(targetId);
           nodeStatuses[targetId] = "ISOLATED";
+          delete highlightedNodes[targetId];
         } else if (actionType === "REVOKE_ROLE" || actionType.includes("REVOKE")) {
           revokedRoles.add(targetId);
           highlightedEdges[targetId] = "action";
@@ -229,6 +238,20 @@ export function reduceAgentEvent(
       for (const target of beforeList) {
         if (!afterList.includes(target) && highlightedNodes[target] === "attack_path") {
           delete highlightedNodes[target];
+        }
+      }
+
+      // If all targets are eliminated, clear all remaining attack_path highlights on nodes and edges
+      if (afterList.length === 0) {
+        for (const [nid, kind] of Object.entries(highlightedNodes)) {
+          if (kind === "attack_path") {
+            delete highlightedNodes[nid];
+          }
+        }
+        for (const [eid, kind] of Object.entries(highlightedEdges)) {
+          if (kind === "attack_path") {
+            delete highlightedEdges[eid];
+          }
         }
       }
       break;

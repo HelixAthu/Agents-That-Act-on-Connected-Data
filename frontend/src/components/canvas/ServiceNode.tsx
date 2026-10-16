@@ -27,7 +27,7 @@ export interface ServiceNodeData {
 export const ServiceNode = React.memo(({ data, selected }: NodeProps) => {
   const nodeData = data as unknown as ServiceNodeData;
   const props = nodeData.props || {};
-  const status = props.status || nodeData.status || "HEALTHY";
+  const status = nodeData.status || props.status || "HEALTHY";
   const tier = props.tier ?? 2;
   const isCustomerFacing = Boolean(props.customer_facing);
   const containsPii = Boolean(props.contains_pii);
@@ -60,10 +60,26 @@ export const ServiceNode = React.memo(({ data, selected }: NodeProps) => {
             Service
           </span>
         </div>
-        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-background/60 border border-border">
+        <span
+          className={cn(
+            "text-[10px] font-mono px-1.5 py-0.2 rounded bg-background/60 border border-border",
+            status === "ISOLATED" && "border-rose-500/80 bg-rose-950/50 text-rose-300 font-bold"
+          )}
+        >
           {status}
         </span>
       </div>
+
+      {status === "ISOLATED" && (
+        <div
+          className={
+            "mb-1.5 rounded bg-rose-950/70 border border-rose-500/80 px-2 py-0.5 " +
+            "text-center text-[10px] font-bold text-rose-300 uppercase tracking-wider animate-pulse"
+          }
+        >
+          ISOLATED
+        </div>
+      )}
 
       <div className="text-xs font-semibold text-foreground truncate mb-2">
         {props.name || nodeData.label}

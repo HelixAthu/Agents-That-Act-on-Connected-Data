@@ -88,4 +88,58 @@ describe("Agent Event Reducer", () => {
     // db-user-billing remains in targets_after
     expect(state.highlightedNodes["db-user-billing"]).toBe("attack_path");
   });
+
+  it("falls back to pendingApproval target and clears all attack paths when targets_after is empty", () => {
+    let state = createInitialIncidentState();
+    state.highlightedNodes["svc-payments-gateway"] = "attack_path";
+    state.highlightedNodes["db-user-billing"] = "attack_path";
+    state.highlightedEdges["svc-payments-gateway->db-user-billing"] = "attack_path";
+
+    // Propose containment requiring approval
+    const approvalReqEvent: AgentEvent = {
+      seq: 10,
+      ts: new Date().toISOString(),
+      type: "approval_required",
+      data: {
+        action_id: "act-test-fallback",
+        action: "ISOLATE_NODE",
+        target_id: "svc-payments-gateway",
+        reason: "Customer facing tier 1 service",
+      },
+    };
+    state = reduceAgentEvent(state, approvalReqEvent);
+    expect(state.status).toBe("waiting_approval");
+    expect(state.pendingApproval?.target_id).toBe("svc-payments-gateway");
+
+    // Action executed event with generic action and empty target_id
+    const executedEvent: AgentEvent = {
+      seq: 11,
+      ts: new Date().toISOString(),
+      type: "action",
+      data: {
+        action_id: "act-test-fallback",
+        action: "CONTAINMENT",
+        target_id: "",
+        status: "EXECUTED",
+      },
+    };
+    state = reduceAgentEvent(state, executedEvent);
+    expect(state.isolatedNodes.has("svc-payments-gateway")).toBe(true);
+    expect(state.nodeStatuses["svc-payments-gateway"]).toBe("ISOLATED");
+
+    // Verification event indicating zero attack targets left
+    const verificationEvent: AgentEvent = {
+      seq: 12,
+      ts: new Date().toISOString(),
+      type: "verification",
+      data: {
+        action_id: "act-test-fallback",
+        targets_before: ["db-user-billing"],
+        targets_after: [],
+      },
+    };
+    state = reduceAgentEvent(state, verificationEvent);
+    expect(Object.keys(state.highlightedEdges).length).toBe(0);
+    expect(state.highlightedNodes["db-user-billing"]).toBeUndefined();
+  });
 });

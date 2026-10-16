@@ -48,14 +48,14 @@ export const CustomEdge = React.memo(
     let strokeWidth = 1.5;
     let strokeDasharray: string | undefined;
 
-    if (isAttackPath) {
-      strokeColor = "#f43f5e";
-      strokeWidth = 2.5;
-      strokeDasharray = "6 4";
-    } else if (isIsolated) {
+    if (isIsolated) {
       strokeColor = "#64748b";
       strokeWidth = 1.5;
       strokeDasharray = "5 5";
+    } else if (isAttackPath) {
+      strokeColor = "#f43f5e";
+      strokeWidth = 2.5;
+      strokeDasharray = "6 4";
     }
 
     const displayLabel = label || edgeData?.relType;
@@ -73,7 +73,7 @@ export const CustomEdge = React.memo(
             opacity: isIsolated ? 0.45 : 1,
             transition: "all 0.3s ease",
           }}
-          className={cn(isAttackPath && "animate-pulse")}
+          className={cn(!isIsolated && isAttackPath && "animate-pulse")}
         />
         {displayLabel && (
           <EdgeLabelRenderer>
@@ -86,7 +86,7 @@ export const CustomEdge = React.memo(
               className={cn(
                 "nodrag nopan rounded px-1.5 py-0.5 text-[9px] font-mono font-medium " +
                   "border border-border/80 bg-background/90 text-muted-foreground shadow-sm",
-                isAttackPath && "border-rose-500 text-rose-300 bg-rose-950/80",
+                !isIsolated && isAttackPath && "border-rose-500 text-rose-300 bg-rose-950/80",
                 isIsolated && "border-slate-700 text-slate-500 opacity-60"
               )}
             >
