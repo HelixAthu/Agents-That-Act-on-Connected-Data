@@ -56,3 +56,59 @@ Log of task execution, command outputs, and commit hashes for verification.
   - Attack path engine: `fallback` (`pathfinder_fallback.py` BFS) due to F5 post-filter semantics
   - Algorithms bonus: `pageRank` enabled, `betweenness` disabled
 - **Status:** DONE
+
+---
+
+## T2. Seed Ingestion & Validation
+
+- **Commits:**
+  - `17305d6`: `feat(seed): add entity data for services, databases, roles, teams`
+  - `26ac028`: `feat(seed): add dependency, access and vulnerability edges`
+  - `4c885af`: `feat(seed): idempotent seed script with --reset and acyclicity check`
+  - Current: `test(seed): assert node/edge counts and acyclicity`
+- **Acceptance Output:**
+  ```bash
+  $ python -m seed.seed_graph --reset
+  Resetting graph 'infra'...
+
+  ==================================================
+  FalkorDB Seed Summary (Graph: infra)
+  ==================================================
+  Nodes:
+    Service         :  20
+    Database        :   5
+    IAMRole         :   6
+    Vulnerability   :   5
+    Team            :   5
+    Total Nodes     :  41
+
+  Edges:
+    DEPENDS_ON      :  50
+    CONNECTS_TO     :   6
+    ASSUMES_ROLE    :   6
+    CAN_ASSUME      :   2
+    CAN_ACCESS      :   5
+    OWNS            :  20
+    AFFECTS         :   5
+    Total Edges     :  94
+  Acyclicity: VERIFIED (DAG)
+  ==================================================
+
+  $ pytest -v tests
+  ============================= test session starts ==============================
+  collected 9 items
+
+  tests/test_seed.py::test_node_counts PASSED                              [ 11%]
+  tests/test_seed.py::test_edge_counts PASSED                              [ 22%]
+  tests/test_seed.py::test_edges_isolated_property PASSED                  [ 33%]
+  tests/test_seed.py::test_each_service_has_exactly_one_owner PASSED       [ 44%]
+  tests/test_seed.py::test_customer_facing_services_count PASSED           [ 55%]
+  tests/test_seed.py::test_pii_databases PASSED                            [ 66%]
+  tests/test_seed.py::test_graph_acyclicity PASSED                         [ 77%]
+  tests/test_seed.py::test_acyclicity_checker_unit PASSED                  [ 88%]
+  tests/test_seed.py::test_seed_idempotency PASSED                         [100%]
+
+  ============================== 9 passed in 0.33s ===============================
+  ```
+- **Status:** DONE
+
