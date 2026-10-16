@@ -82,15 +82,23 @@ async def run_scenario(
         print(format_cli_event(emitted))
 
     if mode == "mock":
-        agent = MockAgent()
-        report = await agent.run(
+        mock_agent = MockAgent()
+        report = await mock_agent.run(
             incident_id=incident_id,
             alert_text=scenario_def.alert_text,
             emit=emit_and_log,
             auto_approve=auto_approve,
         )
     else:
-        raise NotImplementedError("Live mode is implemented in T8b; use --mode mock.")
+        from backend.agent_live import LiveAgent
+
+        live_agent = LiveAgent()
+        report = await live_agent.run(
+            incident_id=incident_id,
+            alert_text=scenario_def.alert_text,
+            emit=emit_and_log,
+            auto_approve=auto_approve,
+        )
 
     # Save replay JSONL
     if replay_out is not None:

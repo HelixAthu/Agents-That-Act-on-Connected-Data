@@ -352,6 +352,47 @@ Log of task execution, command outputs, and commit hashes for verification.
   - Graph Integrity: Every single node ID emitted in `graph_visit` events is verified to exist in the FalkorDB graph.
 - **Status:** DONE
 
+---
+
+## T8. LLM Adapter (Gemini & Anthropic) and Live Agent Loop
+
+- **Commits:**
+  - `feat(agent): live anthropic tool-calling loop`
+- **Acceptance Output:**
+  ```bash
+  $ python scripts/probe_gemini.py
+  ======================================================================
+  GEMINI SDK INTROSPECTION PROBE
+  ======================================================================
+  AutomaticFunctionCallingConfig fields: ['disable', 'ignore_call_history', 'maximum_remote_calls']
+  ThinkingConfig fields                : ['include_thoughts', 'thinking_budget', 'thinking_level']
+  FunctionDeclaration fields           : ['behavior', 'description', 'name', 'parameters', 'parameters_json_schema', 'response', 'response_json_schema']
+  ALL INTROSPECTION RECIPE CHECKS: PASS
+
+  SKIPPED live checks (no key)
+
+  $ pytest -v tests/test_schema_simple.py tests/test_llm_gemini.py tests/test_agent_live.py
+  ============================= test session starts ==============================
+  collected 11 items
+
+  tests/test_schema_simple.py::test_simplify_schema_handles_titles_defaults_and_defs PASSED [  9%]
+  tests/test_schema_simple.py::test_assert_simple_schema_raises_on_illegal_keys PASSED [ 18%]
+  tests/test_schema_simple.py::test_all_11_mcp_tools_simplify_and_pass_assert_simple_schema PASSED [ 27%]
+  tests/test_llm_gemini.py::test_gemini_content_verbatim_identity_check PASSED [ 36%]
+  tests/test_llm_gemini.py::test_gemini_multiple_function_calls_produce_single_content_same_order PASSED [ 45%]
+  tests/test_llm_gemini.py::test_gemini_retries_on_429_and_aborts_immediately_on_400 PASSED [ 54%]
+  tests/test_llm_gemini.py::test_thinking_level_minimal_rejected_by_config_validation PASSED [ 63%]
+  tests/test_agent_live.py::test_agent_live_12_call_cap_aborts PASSED      [ 72%]
+  tests/test_agent_live.py::test_agent_live_repeated_call_abort PASSED     [ 81%]
+  tests/test_agent_live.py::test_agent_live_tool_error_fed_back_as_is_error PASSED [ 90%]
+  tests/test_agent_live.py::test_agent_live_approval_pause_and_report_parse_retry PASSED [100%]
+
+  ============================== 11 passed in 2.01s ==============================
+  ```
+- **Live Run Status:** live Gemini run not verified (GEMINI_API_KEY not configured in local environment; scripted turns verified 100%).
+- **Status:** DONE
+
+
 
 
 
