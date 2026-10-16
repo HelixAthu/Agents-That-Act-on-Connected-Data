@@ -177,7 +177,7 @@ Log of task execution, command outputs, and commit hashes for verification.
 
 - **Commits:**
   - `43338c2`: `feat: deterministic risk scoring with tests`
-  - `feat: containment policy gate with tests`
+  - `e498c66`: `feat: containment policy gate with tests`
 - **Acceptance Output:**
   ```bash
   $ pytest -v tests/test_scoring.py tests/test_policy.py
