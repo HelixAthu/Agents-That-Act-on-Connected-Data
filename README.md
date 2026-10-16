@@ -37,6 +37,9 @@ The **Blast Radius Incident Response Agent** is a graph-native cybersecurity and
 +--------------------------------------------------------------------------------------------------+
 ```
 
+### Demo Video Walkthrough
+📺 **Watch the 2.5-minute submission demo:** [Demo Video Walkthrough](https://youtu.be/placeholder-blast-radius-agent-demo) | Detailed presenter script: [docs/demo_script.md](docs/demo_script.md)
+
 ---
 
 ## 2. Why the Graph is Load-Bearing
