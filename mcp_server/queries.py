@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from falkordb import Graph
 
-from mcp_server.db import run_ro
+from mcp_server.db import run_ro, run_rw
+
+logger = logging.getLogger(__name__)
 
 Q_IMPACT_ID = "Q-IMPACT"
 Q_OWNERS_ID = "Q-OWNERS"
@@ -20,6 +23,43 @@ Q_EDGES_RELS = (
     "MATCH (a)-[r]->(b) WHERE labels(a)[0] IN ['Service','Database','IAMRole','Vulnerability','Team'] "
     "RETURN a.id AS src, type(r) AS rel, b.id AS dst, properties(r) AS props"
 )
+
+Q_RANK_ID = "Q-RANK"
+Q_RANK = """
+MATCH (s:Service)
+OPTIONAL MATCH (d:Service)-[:DEPENDS_ON*1..10]->(s)
+RETURN s.id AS id, s.name AS name, count(DISTINCT d) AS transitive_dependents
+ORDER BY transitive_dependents DESC LIMIT $top_n
+"""
+
+Q_DEPENDENTS_COUNT_ID = "Q-DEPENDENTS-COUNT"
+Q_DEPENDENTS_COUNT = """
+MATCH (target:Service {id: $id})
+OPTIONAL MATCH (d:Service)-[:DEPENDS_ON*1..10]->(target)
+RETURN count(DISTINCT d) AS transitive_dependents
+"""
+
+Q_ISOLATE_NODE_ID = "Q-ISOLATE-NODE"
+Q_ISOLATE_NODE = """
+MATCH (n {id: $id}) SET n.status = 'ISOLATED'
+WITH n MATCH (n)-[r]-() SET r.isolated = true
+"""
+
+Q_REVOKE_ROLE_ID = "Q-REVOKE-ROLE"
+Q_REVOKE_ROLE = """
+MATCH (s:Service {id: $svc})-[r:ASSUMES_ROLE]->(ro:IAMRole {id: $role}) SET r.isolated = true
+"""
+
+Q_ROLLBACK_NODE_ID = "Q-ROLLBACK-NODE"
+Q_ROLLBACK_NODE = """
+MATCH (n {id: $id}) SET n.status = 'HEALTHY'
+WITH n MATCH (n)-[r]-() SET r.isolated = false
+"""
+
+Q_ROLLBACK_ROLE_ID = "Q-ROLLBACK-ROLE"
+Q_ROLLBACK_ROLE = """
+MATCH (s:Service {id: $svc})-[r:ASSUMES_ROLE]->(ro:IAMRole {id: $role}) SET r.isolated = false
+"""
 
 
 def build_impact_query(max_hops: int = 3, critical_only: bool = False) -> str:
@@ -208,4 +248,140 @@ def find_attack_paths(
         "params": {"id": source_id},
         "ms": elapsed_ms,
         "row_count": len(paths),
+    }
+
+
+def rank_critical_components(
+    top_n: int = 5,
+    graph: Graph | None = None,
+) -> dict[str, Any]:
+    """Rank services by number of transitive incoming dependents, with optional PageRank bonus."""
+    if not (1 <= top_n <= 20):
+        raise ValueError(f"top_n must be between 1 and 20, got {top_n}")
+
+    rows, elapsed_ms = run_ro(Q_RANK, {"top_n": top_n}, graph=graph)
+
+    pagerank_scores: dict[str, float] = {}
+    try:
+        pr_rows, _ = run_rw("CALL algo.pageRank('Service', 'DEPENDS_ON')", graph=graph)
+        for node, score in pr_rows:
+            node_id = getattr(node, "properties", {}).get("id")
+            if node_id:
+                pagerank_scores[node_id] = round(float(score), 4)
+    except Exception as err:  # noqa: BLE001
+        logger.debug("PageRank algorithm call skipped or unsupported: %s", err)
+
+    ranking = []
+    visited_nodes: set[str] = set()
+
+    for row in rows:
+        service_id: str = row[0]
+        service_name: str = row[1]
+        trans_deps: int = int(row[2])
+
+        visited_nodes.add(service_id)
+        item: dict[str, Any] = {
+            "id": service_id,
+            "name": service_name,
+            "transitive_dependents": trans_deps,
+        }
+        if service_id in pagerank_scores:
+            item["pagerank"] = pagerank_scores[service_id]
+        ranking.append(item)
+
+    return {
+        "ranking": ranking,
+        "top_n": top_n,
+        "node_ids": sorted(visited_nodes),
+        "query_id": Q_RANK_ID,
+        "cypher": Q_RANK.strip(),
+        "params": {"top_n": top_n},
+        "ms": elapsed_ms,
+        "row_count": len(ranking),
+    }
+
+
+def count_transitive_dependents(service_id: str, graph: Graph | None = None) -> int:
+    """Return the exact count of transitive incoming dependents for a single service."""
+    rows, _ = run_ro(Q_DEPENDENTS_COUNT, {"id": service_id}, graph=graph)
+    return int(rows[0][0]) if rows else 0
+
+
+def isolate_node(node_id: str, graph: Graph | None = None) -> dict[str, Any]:
+    """Isolate a node by setting status to ISOLATED and marking all connected edges isolated."""
+    if not node_id:
+        raise ValueError("node_id must be a non-empty string")
+
+    _, elapsed_ms = run_rw(Q_ISOLATE_NODE, {"id": node_id}, graph=graph)
+    return {
+        "action": "ISOLATE_NODE",
+        "target_id": node_id,
+        "status": "ISOLATED",
+        "query_id": Q_ISOLATE_NODE_ID,
+        "ms": elapsed_ms,
+    }
+
+
+def revoke_role(
+    service_id: str,
+    role_id: str | None = None,
+    graph: Graph | None = None,
+) -> dict[str, Any]:
+    """Revoke an IAM role assumption from a service by marking the ASSUMES_ROLE edge isolated."""
+    if role_id is None and "|" in service_id:
+        svc, role = service_id.split("|", 1)
+    else:
+        svc = service_id
+        role = role_id or ""
+
+    if not svc or not role:
+        raise ValueError("Both service_id and role_id must be provided or formatted as 'svc|role'")
+
+    _, elapsed_ms = run_rw(Q_REVOKE_ROLE, {"svc": svc, "role": role}, graph=graph)
+    return {
+        "action": "REVOKE_ROLE",
+        "target_id": f"{svc}|{role}",
+        "status": "REVOKED",
+        "query_id": Q_REVOKE_ROLE_ID,
+        "ms": elapsed_ms,
+    }
+
+
+def rollback_node(node_id: str, graph: Graph | None = None) -> dict[str, Any]:
+    """Roll back node isolation by restoring status to HEALTHY and unisolating connected edges."""
+    if not node_id:
+        raise ValueError("node_id must be a non-empty string")
+
+    _, elapsed_ms = run_rw(Q_ROLLBACK_NODE, {"id": node_id}, graph=graph)
+    return {
+        "action": "ROLLBACK_NODE",
+        "target_id": node_id,
+        "status": "HEALTHY",
+        "query_id": Q_ROLLBACK_NODE_ID,
+        "ms": elapsed_ms,
+    }
+
+
+def rollback_role(
+    service_id: str,
+    role_id: str | None = None,
+    graph: Graph | None = None,
+) -> dict[str, Any]:
+    """Roll back IAM role revocation by marking the ASSUMES_ROLE edge active (isolated=false)."""
+    if role_id is None and "|" in service_id:
+        svc, role = service_id.split("|", 1)
+    else:
+        svc = service_id
+        role = role_id or ""
+
+    if not svc or not role:
+        raise ValueError("Both service_id and role_id must be provided or formatted as 'svc|role'")
+
+    _, elapsed_ms = run_rw(Q_ROLLBACK_ROLE, {"svc": svc, "role": role}, graph=graph)
+    return {
+        "action": "ROLLBACK_ROLE",
+        "target_id": f"{svc}|{role}",
+        "status": "ACTIVE",
+        "query_id": Q_ROLLBACK_ROLE_ID,
+        "ms": elapsed_ms,
     }
