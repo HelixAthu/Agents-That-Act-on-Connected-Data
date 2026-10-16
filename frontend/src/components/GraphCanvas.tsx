@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   ReactFlow,
   Background,
@@ -9,50 +9,33 @@ import {
   type Node as FlowNode,
   type Edge as FlowEdge,
   type NodeTypes,
+  type EdgeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { fetchGraph } from "@/lib/api";
 import { getLayoutedElements } from "@/lib/layout";
 import { GraphPayload } from "@/types";
+import { ServiceNode } from "@/components/canvas/ServiceNode";
+import { DatabaseNode } from "@/components/canvas/DatabaseNode";
+import { IAMRoleNode } from "@/components/canvas/IAMRoleNode";
+import { CustomEdge } from "@/components/canvas/CustomEdge";
 
-interface SimpleNodeProps {
-  data: {
-    label: string;
-    nodeType: string;
-    status?: string;
-    props?: Record<string, unknown>;
-  };
-}
-
-/**
- * Default memoized node renderer for graph elements.
- */
-const DefaultGraphNode = React.memo(({ data }: SimpleNodeProps) => {
-  return (
-    <div className="rounded-lg border border-border bg-card p-3 shadow-md min-w-[200px]">
-      <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-        <span className="font-semibold uppercase">{data.nodeType}</span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted">
-          {data.status || "HEALTHY"}
-        </span>
-      </div>
-      <div className="text-sm font-medium text-foreground truncate">
-        {data.label}
-      </div>
-    </div>
-  );
-});
-DefaultGraphNode.displayName = "DefaultGraphNode";
-
-// Define nodeTypes OUTSIDE the component to prevent re-creation on every render
+// Define nodeTypes and edgeTypes OUTSIDE the component to prevent re-creation
 const nodeTypes: NodeTypes = {
-  service: DefaultGraphNode,
-  database: DefaultGraphNode,
-  iamrole: DefaultGraphNode,
-  default: DefaultGraphNode,
+  service: ServiceNode,
+  database: DatabaseNode,
+  iamrole: IAMRoleNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  custom: CustomEdge,
+  smoothstep: CustomEdge,
+  default: CustomEdge,
 };
 
 export interface GraphCanvasProps {
+  initialNodes?: FlowNode[];
+  initialEdges?: FlowEdge[];
   onGraphLoaded?: (payload: GraphPayload) => void;
   className?: string;
 }
@@ -60,13 +43,24 @@ export interface GraphCanvasProps {
 /**
  * Canvas component that loads and renders the infrastructure graph using React Flow and Dagre.
  */
-export function GraphCanvas({ onGraphLoaded, className }: GraphCanvasProps): JSX.Element {
-  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+export function GraphCanvas({
+  initialNodes,
+  initialEdges,
+  onGraphLoaded,
+  className,
+}: GraphCanvasProps): JSX.Element {
+  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initialNodes || []);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>(initialEdges || []);
+  const [loading, setLoading] = useState<boolean>(!initialNodes || initialNodes.length === 0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialNodes && initialNodes.length > 0) {
+      setNodes(initialNodes);
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
     async function loadGraphData(): Promise<void> {
       try {
@@ -91,9 +85,16 @@ export function GraphCanvas({ onGraphLoaded, className }: GraphCanvasProps): JSX
     return () => {
       isMounted = false;
     };
-  }, [onGraphLoaded, setNodes, setEdges]);
+  }, [initialNodes, onGraphLoaded, setNodes, setEdges]);
+
+  useEffect(() => {
+    if (initialEdges && initialEdges.length > 0) {
+      setEdges(initialEdges);
+    }
+  }, [initialEdges, setEdges]);
 
   const memoizedNodeTypes = useMemo(() => nodeTypes, []);
+  const memoizedEdgeTypes = useMemo(() => edgeTypes, []);
 
   if (loading) {
     return (
@@ -119,8 +120,9 @@ export function GraphCanvas({ onGraphLoaded, className }: GraphCanvasProps): JSX
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={memoizedNodeTypes}
+        edgeTypes={memoizedEdgeTypes}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 0.15 }}
         minZoom={0.2}
         maxZoom={2.0}
       >
