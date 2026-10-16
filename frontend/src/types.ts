@@ -108,3 +108,49 @@ export interface AgentEvent {
 }
 
 export type NodeVisualStatus = "HEALTHY" | "DEGRADED" | "FAILED" | "ISOLATED";
+
+export interface TraceItem {
+  seq: number;
+  ts: string;
+  type: string;
+  tool?: string;
+  call_id?: string;
+  query_id?: string;
+  cypher?: string;
+  args?: Record<string, unknown>;
+  summary?: string;
+  ok?: boolean;
+  text?: string;
+  ms?: number;
+}
+
+export interface PendingApproval {
+  action_id: string;
+  action: string;
+  target_id: string;
+  reason?: string;
+  policy?: string;
+  targets_before?: string[];
+  targets_after?: string[];
+}
+
+export interface IncidentState {
+  incidentId: string | null;
+  alertText: string | null;
+  status: "idle" | "running" | "waiting_approval" | "completed" | "error";
+  events: AgentEvent[];
+  traceItems: TraceItem[];
+  riskScore: number;
+  riskComponents: Record<string, number>;
+  highlightedNodes: Record<string, string>;
+  highlightedEdges: Record<string, string>;
+  nodeStatuses: Record<string, string>;
+  isolatedNodes: Set<string>;
+  revokedRoles: Set<string>;
+  seenApprovalRequired: boolean;
+  pendingApproval: PendingApproval | null;
+  executedActions: ReportAction[];
+  verification: ReportVerification | null;
+  finalReport: FinalReport | null;
+  error: string | null;
+}
