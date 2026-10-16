@@ -15,5 +15,33 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: blast-radius-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - FALKORDB_HOST=falkordb
+      - FALKORDB_PORT=6379
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: blast-radius-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   falkordb_data:
