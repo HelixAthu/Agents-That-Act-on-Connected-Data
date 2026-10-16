@@ -490,7 +490,10 @@ Log of task execution, command outputs, and commit hashes for verification.
 
 - **Commits:**
   - `docs: query reference with golden results`
+  - `docs: readme with graph model, setup and ai disclosure`
 - **Reference Deliverables:**
   - `docs/queries.md`: Complete Cypher query catalog (Q-CONTEXT, Q-IMPACT, Q-ATTACK, Q-RANK, containment mutations, audit trail), traversal mechanics, and golden results reference (G1 to G9).
+  - `README.md`: Full architectural overview, graph load-bearing analysis, data model tables, MCP tools catalog, safety policy truth table, exact setup commands, benchmark eval results, AI assistance disclosure, and limitations.
+
 
 
