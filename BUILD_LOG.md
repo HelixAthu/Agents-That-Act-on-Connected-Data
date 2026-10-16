@@ -278,6 +278,28 @@ Log of task execution, command outputs, and commit hashes for verification.
   - Concurrency: `_CONTAINMENT_LOCK` guarantees race-free sequential evaluation under concurrent simulation requests.
 - **Status:** DONE
 
+---
+
+## T7. Mock Agent, Event Bus, and CLI (Part 1: Event Models & Bus)
+
+- **Commits:**
+  - `feat(agent): event models and in-memory event bus`
+- **Acceptance Output:**
+  ```bash
+  $ pytest -v tests/test_events.py
+  ============================= test session starts ==============================
+  collected 4 items
+
+  tests/test_events.py::test_event_payload_models_serialization PASSED     [ 25%]
+  tests/test_events.py::test_event_bus_sequential_numbering_and_subscribers PASSED [ 50%]
+  tests/test_events.py::test_event_bus_dump_and_load_jsonl PASSED          [ 75%]
+  tests/test_events.py::test_final_report_model_and_anti_hallucination_guard PASSED [100%]
+
+  ============================== 4 passed in 0.15s ===============================
+  ```
+- **Status:** IN PROGRESS (Commit 23 completed; MCP bridge, mock agent scenarios, and CLI next)
+
+
 
 
 
