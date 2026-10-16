@@ -280,24 +280,30 @@ Log of task execution, command outputs, and commit hashes for verification.
 
 ---
 
-## T7. Mock Agent, Event Bus, and CLI (Part 1: Event Models & Bus)
+## T7. Mock Agent, Event Bus, and CLI
 
 - **Commits:**
-  - `feat(agent): event models and in-memory event bus`
+  - `21ff5a7`: `feat(agent): event models and in-memory event bus`
+  - `feat(agent): mcp bridge client`
 - **Acceptance Output:**
   ```bash
-  $ pytest -v tests/test_events.py
+  $ pytest -v tests/test_events.py tests/test_mcp_bridge.py
   ============================= test session starts ==============================
-  collected 4 items
+  collected 8 items
 
-  tests/test_events.py::test_event_payload_models_serialization PASSED     [ 25%]
-  tests/test_events.py::test_event_bus_sequential_numbering_and_subscribers PASSED [ 50%]
-  tests/test_events.py::test_event_bus_dump_and_load_jsonl PASSED          [ 75%]
-  tests/test_events.py::test_final_report_model_and_anti_hallucination_guard PASSED [100%]
+  tests/test_events.py::test_event_payload_models_serialization PASSED     [ 12%]
+  tests/test_events.py::test_event_bus_sequential_numbering_and_subscribers PASSED [ 25%]
+  tests/test_events.py::test_event_bus_dump_and_load_jsonl PASSED          [ 37%]
+  tests/test_events.py::test_final_report_model_and_anti_hallucination_guard PASSED [ 50%]
+  tests/test_mcp_bridge.py::test_bridge_list_tools_returns_all_11_spec_tools PASSED [ 62%]
+  tests/test_mcp_bridge.py::test_bridge_get_tool_lookup PASSED             [ 75%]
+  tests/test_mcp_bridge.py::test_bridge_call_with_argument_normalization PASSED [ 87%]
+  tests/test_mcp_bridge.py::test_bridge_build_tool_summary_formatting PASSED [100%]
 
-  ============================== 4 passed in 0.15s ===============================
+  ============================== 8 passed in 0.58s ===============================
   ```
-- **Status:** IN PROGRESS (Commit 23 completed; MCP bridge, mock agent scenarios, and CLI next)
+- **Status:** IN PROGRESS (Commits 23, 24 completed; mock agent scenarios and CLI next)
+
 
 
 
