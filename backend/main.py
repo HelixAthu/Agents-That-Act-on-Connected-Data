@@ -336,9 +336,10 @@ class ActionApproveResponse(BaseModel):
 @app.post("/actions/{action_id}/approve", response_model=ActionApproveResponse)
 async def approve_incident_action(
     action_id: str,
-    req: ActionApproveRequest,
+    req: ActionApproveRequest | None = None,
 ) -> ActionApproveResponse:
     """Approve a pending containment action and resume paused agent execution."""
+    approve_req: ActionApproveRequest = req if req is not None else ActionApproveRequest()
     logger.info(
         "Received approval request for action '%s'. Current pending: %s",
         action_id,
@@ -360,7 +361,7 @@ async def approve_incident_action(
         )
 
     # Record approval in the database
-    approve_action(action_id, approved_by=req.approved_by)
+    approve_action(action_id, approved_by=approve_req.approved_by)
 
     # Resume paused agent task
     future.set_result(True)
@@ -368,7 +369,7 @@ async def approve_incident_action(
     return ActionApproveResponse(
         ok=True,
         action_id=action_id,
-        approved_by=req.approved_by,
+        approved_by=approve_req.approved_by,
     )
 
 

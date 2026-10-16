@@ -51,10 +51,13 @@ export async function createIncident(
  * Approves a pending containment action by ID.
  */
 export async function approveAction(
-  actionId: string
-): Promise<{ status: string; action_id: string }> {
+  actionId: string,
+  approvedBy = "security-lead@corp"
+): Promise<{ ok: boolean; action_id: string; approved_by?: string }> {
   const response = await fetch(`${BASE_URL}/actions/${actionId}/approve`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ approved_by: approvedBy }),
   });
   if (!response.ok) {
     throw new Error(`Failed to approve action: ${response.status} ${response.statusText}`);
