@@ -65,7 +65,7 @@ Log of task execution, command outputs, and commit hashes for verification.
   - `17305d6`: `feat(seed): add entity data for services, databases, roles, teams`
   - `26ac028`: `feat(seed): add dependency, access and vulnerability edges`
   - `4c885af`: `feat(seed): idempotent seed script with --reset and acyclicity check`
-  - Current: `test(seed): assert node/edge counts and acyclicity`
+  - `23323cf`: `test(seed): assert node/edge counts and acyclicity`
 - **Acceptance Output:**
   ```bash
   $ python -m seed.seed_graph --reset
@@ -111,4 +111,34 @@ Log of task execution, command outputs, and commit hashes for verification.
   ============================== 9 passed in 0.33s ===============================
   ```
 - **Status:** DONE
+
+---
+
+## T3. Query Layer
+
+- **Commits:**
+  - `12ef917`: `feat(queries): failure impact traversal`
+  - `561cbe7`: `feat(queries): attacker paths to PII databases`
+  - `ff186b2`: `feat(queries): criticality ranking and containment writes`
+  - Current: `test(queries): golden results G2 to G7`
+- **Acceptance Output:**
+  ```bash
+  $ pytest -v tests/test_queries.py
+  ============================= test session starts ==============================
+  collected 8 items
+
+  tests/test_queries.py::test_g2_attack_paths_from_payments_gateway_fallback PASSED [ 12%]
+  tests/test_queries.py::test_g2_attack_paths_from_payments_gateway_cypher PASSED [ 25%]
+  tests/test_queries.py::test_g3_containment_effects PASSED                [ 37%]
+  tests/test_queries.py::test_g4_failure_impact_svc_config PASSED          [ 50%]
+  tests/test_queries.py::test_g5_failure_impact_db_orders PASSED           [ 62%]
+  tests/test_queries.py::test_g6_attack_paths_from_svc_config PASSED       [ 75%]
+  tests/test_queries.py::test_g7_criticality_ranking PASSED                [ 87%]
+  tests/test_queries.py::test_query_input_validations PASSED               [100%]
+
+  ============================== 8 passed in 0.52s ===============================
+  ```
+- **Golden Values Asserted:** G2 (attack paths), G3 (containment & rollback), G4 (svc-config blast radius), G5 (db-orders failure impact), G6 (svc-config attack paths), G7 (criticality ranking).
+- **Status:** DONE
+
 
