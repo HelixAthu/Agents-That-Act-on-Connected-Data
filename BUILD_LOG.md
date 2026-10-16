@@ -392,6 +392,14 @@ Log of task execution, command outputs, and commit hashes for verification.
 - **Live Run Status:** live Gemini run not verified (GEMINI_API_KEY not configured in local environment; scripted turns verified 100%).
 - **Status:** DONE
 
+---
+
+## T9. FastAPI + SSE + Approval
+
+- **Commits:**
+  - `feat(api): fastapi routes, graph endpoint and SSE stream`
+
+
 
 
 

@@ -743,3 +743,46 @@ def create_finding(
     }
 
 
+Q_HEALTH = "MATCH (n) RETURN count(n) AS count"
+Q_GRAPH_NODES = (
+    "MATCH (n) WHERE labels(n)[0] IN ['Service', 'Database', 'IAMRole'] "
+    "RETURN n.id AS id, labels(n)[0] AS label, properties(n) AS props"
+)
+Q_GRAPH_EDGES = (
+    "MATCH (a)-[r]->(b) "
+    "WHERE labels(a)[0] IN ['Service', 'Database', 'IAMRole'] "
+    "AND labels(b)[0] IN ['Service', 'Database', 'IAMRole'] "
+    "RETURN a.id AS src, type(r) AS rel, b.id AS dst, properties(r) AS props"
+)
+
+
+def get_graph_health(graph: Graph | None = None) -> dict[str, Any]:
+    """Check graph connection and return total node count."""
+    rows, _ = run_ro(Q_HEALTH, graph=graph)
+    node_count = int(rows[0][0]) if rows and rows[0] else 0
+    return {"ok": True, "graph": "infra", "nodes": node_count}
+
+
+def get_ui_graph(graph: Graph | None = None) -> dict[str, Any]:
+    """Retrieve UI graph containing Service, Database, and IAMRole nodes and connecting edges."""
+    node_rows, _ = run_ro(Q_GRAPH_NODES, graph=graph)
+    edge_rows, _ = run_ro(Q_GRAPH_EDGES, graph=graph)
+
+    nodes = [
+        {"id": str(row[0]), "label": str(row[1]), "props": dict(row[2])}
+        for row in node_rows
+    ]
+    edges = [
+        {
+            "id": f"{row[0]}|{row[1]}|{row[2]}",
+            "source": str(row[0]),
+            "target": str(row[2]),
+            "type": str(row[1]),
+            "props": dict(row[3]),
+        }
+        for row in edge_rows
+    ]
+    return {"nodes": nodes, "edges": edges}
+
+
+
