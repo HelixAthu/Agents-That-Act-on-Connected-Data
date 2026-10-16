@@ -75,15 +75,15 @@ async def test_graph_endpoint_filtered_counts_and_edge_format() -> None:
 
 @pytest.mark.asyncio
 async def test_scenarios_listing() -> None:
-    """Assert GET /scenarios lists all three canonical incident scenarios."""
+    """Assert GET /scenarios lists canonical incident scenarios."""
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.get("/scenarios")
         assert resp.status_code == 200
         scenarios = resp.json()
-        assert len(scenarios) == 3
+        assert len(scenarios) == 4
         ids = [s["id"] for s in scenarios]
-        assert ids == ["A", "B", "C"]
+        assert ids == ["A", "B", "C", "A2"]
 
 
 @pytest.mark.asyncio
