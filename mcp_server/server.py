@@ -22,6 +22,7 @@ from mcp_server.queries import (
 from mcp_server.queries import (
     rank_critical_components as execute_criticality_ranking,
 )
+from mcp_server.scoring import compute_target_risk
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +204,36 @@ def rank_critical_components(top_n: int = 5) -> str:
 
 
 @mcp.tool()
+def compute_risk(target_id: str) -> str:
+    """Compute the deterministic risk score for a target component using CVSS severity, PII database
+    reachability, failure blast radius, and architectural centrality.
+
+    Use when: evaluating risk of an alert or security finding, or deciding whether containment actions
+    require human approval.
+    Do NOT use when: needing full multi-hop traversal paths or executing containment mutations.
+    """
+    if not target_id or not isinstance(target_id, str) or not target_id.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "target_id must be a non-empty string")
+
+    cleaned_id: str = target_id.strip()
+    try:
+        result = compute_target_risk(cleaned_id)
+        data: dict[str, Any] = {
+            "risk": result["data"]["risk"],
+            "components": result["data"]["components"],
+            "vulnerability": result["data"]["vulnerability"],
+            "attack_target_count": result["data"]["attack_target_count"],
+            "impacted_cf_count": result["data"]["impacted_cf_count"],
+        }
+        return format_success(data=data, visit=result["visit"], evidence=result["evidence"])
+    except KeyError:
+        return format_error(ErrorCode.NOT_FOUND, f"Component '{cleaned_id}' was not found in the graph")
+    except Exception as err:
+        logger.exception("Error in compute_risk for '%s'", cleaned_id)
+        return format_error(ErrorCode.DB_ERROR, f"Database error computing risk: {err}")
+
+
+@mcp.tool()
 def run_readonly_cypher(query: str) -> str:
     """Execute an arbitrary read-only Cypher query against the FalkorDB infrastructure graph.
 
@@ -216,7 +247,8 @@ def run_readonly_cypher(query: str) -> str:
     if FORBIDDEN_CYPHER_KEYWORDS.search(cleaned_query):
         return format_error(
             ErrorCode.POLICY_DENIED,
-            "Query contains prohibited mutation or procedure call keywords (CREATE, MERGE, SET, DELETE, REMOVE, DROP, CALL)",
+            "Query contains prohibited mutation or procedure call keywords "
+            "(CREATE, MERGE, SET, DELETE, REMOVE, DROP, CALL)",
         )
 
     try:

@@ -215,3 +215,36 @@ Log of task execution, command outputs, and commit hashes for verification.
   - Determinism: 3 consecutive runs produce identical scores and decisions.
 - **Status:** DONE
 
+---
+
+## T5. MCP Tool 5: Compute Risk
+
+- **Commits:**
+  - `feat(mcp): compute_risk tool`
+- **Acceptance Output:**
+  ```bash
+  $ pytest -v tests/test_mcp_tools.py
+  ============================= test session starts ==============================
+  collected 15 items
+
+  tests/test_mcp_tools.py::test_get_component_context_success PASSED       [  6%]
+  tests/test_mcp_tools.py::test_get_component_context_not_found PASSED     [ 13%]
+  tests/test_mcp_tools.py::test_get_component_context_invalid_input PASSED [ 20%]
+  tests/test_mcp_tools.py::test_get_failure_impact_tool PASSED             [ 26%]
+  tests/test_mcp_tools.py::test_get_failure_impact_invalid_hops PASSED     [ 33%]
+  tests/test_mcp_tools.py::test_find_attack_paths_tool PASSED              [ 40%]
+  tests/test_mcp_tools.py::test_find_attack_paths_invalid_hops PASSED      [ 46%]
+  tests/test_mcp_tools.py::test_rank_critical_components_tool PASSED       [ 53%]
+  tests/test_mcp_tools.py::test_rank_critical_components_invalid_top_n PASSED [ 60%]
+  tests/test_mcp_tools.py::test_run_readonly_cypher_success PASSED         [ 66%]
+  tests/test_mcp_tools.py::test_run_readonly_cypher_policy_denied PASSED   [ 73%]
+  tests/test_mcp_tools.py::test_compute_risk_tool_payments_gateway_success PASSED [ 80%]
+  tests/test_mcp_tools.py::test_compute_risk_tool_config_success PASSED   [ 86%]
+  tests/test_mcp_tools.py::test_compute_risk_tool_not_found PASSED        [ 93%]
+  tests/test_mcp_tools.py::test_compute_risk_tool_invalid_input PASSED    [100%]
+
+  ============================== 15 passed in 0.95s ==============================
+  ```
+- **Status:** DONE
+
+

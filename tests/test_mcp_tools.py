@@ -5,6 +5,7 @@ import json
 import pytest
 
 from mcp_server.server import (
+    compute_risk,
     find_attack_paths,
     get_component_context,
     get_failure_impact,
@@ -161,3 +162,58 @@ def test_run_readonly_cypher_policy_denied() -> None:
         assert payload["ok"] is False
         assert payload["error"]["code"] == "POLICY_DENIED"
         assert "prohibited" in payload["error"]["message"].lower()
+
+
+def test_compute_risk_tool_payments_gateway_success() -> None:
+    """Assert Tool 5 compute_risk computes deterministic score and returns inspect visit for payments gateway."""
+    payload = json.loads(compute_risk("svc-payments-gateway"))
+    assert payload["ok"] is True
+    data = payload["data"]
+
+    # Assert Golden Value G8 within tolerance
+    assert abs(data["risk"] - 0.828) <= 0.003
+    assert data["attack_target_count"] == 2
+    assert data["impacted_cf_count"] == 2
+    assert data["vulnerability"]["id"] == "vuln-001"
+
+    components = data["components"]
+    assert abs(components["severity"] - 0.98) <= 0.001
+    assert components["pii"] == 1.0
+    assert abs(components["blast"] - 0.25) <= 0.001
+    assert abs(components["central"] - 0.1053) <= 0.001
+
+    visit = payload["visit"]
+    assert visit["kind"] == "inspect"
+    assert "svc-payments-gateway" in visit["node_ids"]
+
+    evidence = payload["evidence"]
+    assert evidence["query_id"] == "Q-RISK-ASSESSMENT"
+
+
+def test_compute_risk_tool_config_success() -> None:
+    """Assert Tool 5 compute_risk computes deterministic score for svc-config."""
+    payload = json.loads(compute_risk("svc-config"))
+    assert payload["ok"] is True
+    data = payload["data"]
+
+    # Assert Golden Value G8 within tolerance
+    assert abs(data["risk"] - 0.514) <= 0.003
+    assert data["attack_target_count"] == 0
+    assert data["impacted_cf_count"] == 8
+    assert data["vulnerability"]["id"] == "vuln-005"
+
+
+def test_compute_risk_tool_not_found() -> None:
+    """Assert Tool 5 returns NOT_FOUND error for non-existent component."""
+    payload = json.loads(compute_risk("svc-does-not-exist"))
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "NOT_FOUND"
+    assert "not found" in payload["error"]["message"].lower()
+
+
+def test_compute_risk_tool_invalid_input() -> None:
+    """Assert Tool 5 returns INVALID_INPUT error for empty target ID."""
+    payload = json.loads(compute_risk(""))
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "INVALID_INPUT"
+
