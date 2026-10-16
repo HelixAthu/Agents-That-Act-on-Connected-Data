@@ -427,15 +427,16 @@ Log of task execution, command outputs, and commit hashes for verification.
 - **Tag:** `v0.2-agent`
 - **Status:** DONE
 
+---
 
+## T10. Frontend Scaffold
 
-
-
-
-
-
-
-
-
-
-
+- **Commits:**
+  - `chore(web): scaffold vite, tailwind and shadcn`
+- **Scaffold Details:**
+  - Vite + React 18 + TypeScript strict bundler setup
+  - Tailwind CSS with dark theme tokens and Shadcn HSL variables
+  - Radix UI primitives: `@radix-ui/react-slot`, `@radix-ui/react-scroll-area`, `@radix-ui/react-tabs`
+  - React Flow (`@xyflow/react`) and Dagre (`@dagrejs/dagre`) dependencies
+  - Three-column dashboard skeleton (Trace feed, Canvas, Risk/Approval panels)
+- **Status:** IN_PROGRESS
