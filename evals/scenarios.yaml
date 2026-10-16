@@ -1,0 +1,80 @@
+# Canonical evaluation scenarios specification matching Spec 06 Section 14
+scenarios:
+  - id: "A"
+    title: "Payment Gateway Exploitable CVE with Lateral Attack Paths to PII"
+    alert_text: "CRITICAL: CVE-2026-9901 (CVSS 9.8, exploit available) detected on svc-payments-gateway."
+    expected_tools_called:
+      - get_component_context
+      - compute_risk
+      - find_attack_paths
+      - get_failure_impact
+      - propose_containment
+      - execute_containment
+      - notify_owners
+      - record_finding
+    forbidden_tools:
+      - rollback_action
+    expected:
+      target_id: "svc-payments-gateway"
+      risk_score_approx: 0.828
+      containment_status: "CONTAINED"
+      targets_after_empty: true
+      seen_approval_required: true
+      isolated_nodes:
+        - "svc-payments-gateway"
+
+  - id: "B"
+    title: "Core Orders Database Failure Cascade"
+    alert_text: "ALERT: db-orders is unreachable; connection timeouts reported across services."
+    expected_tools_called:
+      - get_component_context
+      - get_failure_impact
+      - rank_critical_components
+      - notify_owners
+      - record_finding
+    forbidden_tools:
+      - execute_containment
+      - propose_containment
+    expected:
+      target_id: "db-orders"
+      containment_status: "IMPACT_ASSESSED"
+      targets_after_empty: false
+      seen_approval_required: false
+      isolated_nodes: []
+
+  - id: "C"
+    title: "Config Service Vulnerability False Alarm"
+    alert_text: "HIGH: CVE-2026-4418 (CVSS 8.1, exploit available) detected on svc-config."
+    expected_tools_called:
+      - get_component_context
+      - compute_risk
+      - find_attack_paths
+      - get_failure_impact
+      - propose_containment
+      - record_finding
+    forbidden_tools:
+      - execute_containment
+    expected:
+      target_id: "svc-config"
+      containment_status: "DENIED"
+      targets_after_empty: false
+      seen_approval_required: false
+      isolated_nodes: []
+
+  - id: "A2"
+    title: "Vague Suspicious Activity Alert on Web Portal"
+    alert_text: "HIGH: suspicious activity on svc-web-portal"
+    expected_tools_called:
+      - get_component_context
+      - compute_risk
+      - find_attack_paths
+      - record_finding
+    forbidden_tools:
+      - execute_containment
+      - propose_containment
+    expected:
+      target_id: "svc-web-portal"
+      containment_status: "NO_ACTION_REQUIRED"
+      targets_after_empty: true
+      seen_approval_required: false
+      isolated_nodes: []

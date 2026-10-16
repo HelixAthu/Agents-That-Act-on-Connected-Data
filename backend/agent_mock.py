@@ -142,6 +142,14 @@ class MockAgent:
                 recorded_calls=recorded_tool_calls,
                 visited_nodes=visited_nodes,
             )
+        elif scenario_id == "A2":
+            report = await self._run_scenario_a2(
+                incident_id=incident_id,
+                call_fn=_call,
+                thought_fn=_thought,
+                recorded_calls=recorded_tool_calls,
+                visited_nodes=visited_nodes,
+            )
         else:
             report = await self._run_scenario_c(
                 incident_id=incident_id,
@@ -583,6 +591,86 @@ class MockAgent:
                 owner_teams=["team-platform"],
             ),
             actions=actions,
+            verification=ReportVerification(
+                targets_before=[],
+                targets_after=[],
+            ),
+            tool_calls=recorded_calls,
+        )
+
+    async def _run_scenario_a2(
+        self,
+        incident_id: str,
+        call_fn: Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]],
+        thought_fn: Callable[[str], Awaitable[None]],
+        recorded_calls: list[ReportToolCall],
+        visited_nodes: set[str],
+    ) -> FinalReport:
+        """Execute Scenario A2: Vague suspicious activity on web portal; verify no unneeded isolation."""
+        await thought_fn(
+            "Received vague alert for suspicious activity on svc-web-portal. Inspecting component context."
+        )
+        ctx_env = await call_fn("get_component_context", {"id": "svc-web-portal"})
+        ctx = ctx_env.get("data", {})
+        for owner in ctx.get("owners", []):
+            if isinstance(owner, dict) and "id" in owner:
+                visited_nodes.add(owner["id"])
+            elif isinstance(owner, str):
+                visited_nodes.add(owner)
+        visited_nodes.add("svc-web-portal")
+        visited_nodes.add("team-frontend")
+
+        await thought_fn("Assessing composite risk score for svc-web-portal.")
+        risk_res = await call_fn("compute_risk", {"target_id": "svc-web-portal"})
+        risk_score = float(risk_res.get("data", {}).get("risk", 0.15))
+
+        await thought_fn(
+            "Testing for reachable attack paths to sensitive data stores before considering containment."
+        )
+        await call_fn(
+            "find_attack_paths",
+            {"source_id": "svc-web-portal", "max_hops": 4},
+        )
+
+        await thought_fn(
+            "No active exploit or reachable attack path to critical databases discovered. Refraining from isolation."
+        )
+        evidence_ids = [c.call_id for c in recorded_calls]
+        await call_fn(
+            "record_finding",
+            {
+                "incident_id": incident_id,
+                "kind": "BENIGN_ACTIVITY",
+                "summary": (
+                    "Suspicious activity on svc-web-portal investigated. No uncontained lateral attack paths "
+                    "found; service remains healthy and active without isolation."
+                ),
+                "evidence_ids": ["svc-web-portal"],
+                "risk_score": risk_score,
+            },
+        )
+
+        findings = [
+            ReportFinding(
+                claim="svc-web-portal shows normal dependency boundaries without reachable PII paths.",
+                evidence_refs=evidence_ids[:2],
+            )
+        ]
+
+        return FinalReport(
+            incident_id=incident_id,
+            summary=(
+                "Investigation of suspicious activity on svc-web-portal completed. Low composite risk (0.15), "
+                "no exploitable CVE, and zero attack paths to PII stores. No containment isolation required."
+            ),
+            risk_score=risk_score,
+            findings=findings,
+            impact=ReportImpact(
+                impacted_services=1,
+                customer_facing=1,
+                owner_teams=["team-frontend"],
+            ),
+            actions=[],
             verification=ReportVerification(
                 targets_before=[],
                 targets_after=[],

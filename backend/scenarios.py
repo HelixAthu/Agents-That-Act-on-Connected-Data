@@ -8,6 +8,7 @@ from dataclasses import dataclass
 SCENARIO_A_ALERT = "CRITICAL: CVE-2026-9901 (CVSS 9.8, exploit available) detected on svc-payments-gateway."
 SCENARIO_B_ALERT = "ALERT: db-orders is unreachable; connection timeouts reported across services."
 SCENARIO_C_ALERT = "HIGH: CVE-2026-4418 (CVSS 8.1, exploit available) detected on svc-config."
+SCENARIO_A2_ALERT = "HIGH: suspicious activity on svc-web-portal"
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,13 @@ SCENARIOS: dict[str, ScenarioDefinition] = {
         target_id="svc-config",
         description="Reported CVE on internal config service with zero reachable PII paths and high blast radius.",
     ),
+    "A2": ScenarioDefinition(
+        id="A2",
+        title="Vague Suspicious Activity Alert on Web Portal",
+        alert_text=SCENARIO_A2_ALERT,
+        target_id="svc-web-portal",
+        description="Vague activity alert evaluating tool selection without unwarranted containment isolation.",
+    ),
 }
 
 
@@ -60,8 +68,10 @@ def get_scenario(scenario_id: str) -> ScenarioDefinition:
 
 
 def detect_scenario(alert_text: str) -> str:
-    """Detect scenario identifier ('A', 'B', or 'C') from incident alert text."""
+    """Detect scenario identifier ('A', 'B', 'C', or 'A2') from incident alert text."""
     text_lower = alert_text.lower()
+    if "suspicious activity" in text_lower or "svc-web-portal" in text_lower:
+        return "A2"
     if "svc-payments-gateway" in text_lower or "cve-2026-9901" in text_lower:
         return "A"
     if "db-orders" in text_lower or "unreachable" in text_lower:
@@ -70,6 +80,9 @@ def detect_scenario(alert_text: str) -> str:
         return "C"
 
     # Fallback to regex ID matching
+    match_a2 = re.search(r"\b(?:suspicious|web-portal)\b", text_lower)
+    if match_a2:
+        return "A2"
     match_a = re.search(r"\b(?:payments|gateway)\b", text_lower)
     if match_a:
         return "A"

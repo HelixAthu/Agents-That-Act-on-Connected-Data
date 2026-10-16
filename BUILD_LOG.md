@@ -459,3 +459,28 @@ Log of task execution, command outputs, and commit hashes for verification.
   - TypeScript strict compilation (`tsc`) and production Vite build verified
 - **Tag:** `v0.3-ui`
 - **Status:** DONE
+
+---
+
+## T13. Day 4 Evaluation Benchmark and Scenarios Harness
+
+- **Commits:**
+  - `feat(evals): scenario harness and results table`
+- **Acceptance Output:**
+  ```bash
+  $ pytest -v tests/test_evals.py
+  ============================= test session starts ==============================
+  collected 2 items
+
+  tests/test_evals.py::test_scenarios_spec_loading PASSED                  [ 50%]
+  tests/test_evals.py::test_eval_harness_execution PASSED                  [100%]
+
+  ============================== 2 passed in 1.28s ===============================
+  ```
+- **Evaluation Benchmark Summary:**
+  - 4 canonical scenarios evaluated: A, B, C, and A2 (vague alert on `svc-web-portal`).
+  - Pass Rate: 100% (4/4 passed).
+  - Quantitative metrics asserted: Tool match, zero hallucinated IDs, 100% policy compliance, containment effectiveness, tool calls <= 12, low latency.
+  - Baseline comparison documented in `evals/results.md`: G2 and G5 against flat JSON representations.
+- **Status:** DONE
+
