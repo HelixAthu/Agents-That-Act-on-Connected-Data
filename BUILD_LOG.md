@@ -397,8 +397,36 @@ Log of task execution, command outputs, and commit hashes for verification.
 ## T9. FastAPI + SSE + Approval
 
 - **Commits:**
-  - `feat(api): fastapi routes, graph endpoint and SSE stream`
-  - `feat(api): approval endpoint with pause and resume`
+  - `5f61864`: `feat(api): fastapi routes, graph endpoint and SSE stream`
+  - `b505174`: `feat(api): approval endpoint with pause and resume`
+  - `test(api): approval flow end to end`
+- **Acceptance Output:**
+  ```bash
+  $ pytest -v tests/test_api.py
+  ============================= test session starts ==============================
+  collected 10 items
+
+  tests/test_api.py::test_health_endpoint PASSED                           [ 10%]
+  tests/test_api.py::test_graph_endpoint_filtered_counts_and_edge_format PASSED [ 20%]
+  tests/test_api.py::test_scenarios_listing PASSED                         [ 30%]
+  tests/test_api.py::test_replays_endpoints PASSED                         [ 40%]
+  tests/test_api.py::test_admin_reset_endpoint PASSED                      [ 50%]
+  tests/test_api.py::test_incident_lifecycle_mock_scenario_c_and_events PASSED [ 60%]
+  tests/test_api.py::test_incident_sse_stream PASSED                       [ 70%]
+  tests/test_api.py::test_approve_nonexistent_action_returns_404 PASSED    [ 80%]
+  tests/test_api.py::test_rollback_nonexistent_action_returns_404 PASSED   [ 90%]
+  tests/test_api.py::test_approval_flow_pause_resume_and_rollback PASSED   [100%]
+
+  ============================= 10 passed in 2.35s ==============================
+  ```
+- **Graph Node / Edge Counts:**
+  - Total nodes in DB: 41
+  - Nodes in UI graph (/graph): 31 (20 Service, 5 Database, 6 IAMRole; Team and Vulnerability excluded)
+  - Edges in UI graph (/graph): 69 (50 DEPENDS_ON, 6 CONNECTS_TO, 6 ASSUMES_ROLE, 2 CAN_ASSUME, 5 CAN_ACCESS)
+  - Edge ID format: `src|REL|dst` verified against `^[a-z0-9-]+\|[A-Z_]+\|[a-z0-9-]+$`
+- **Tag:** `v0.2-agent`
+- **Status:** DONE
+
 
 
 
