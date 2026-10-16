@@ -493,11 +493,17 @@ Log of task execution, command outputs, and commit hashes for verification.
   - `docs: readme with graph model, setup and ai disclosure`
   - `chore: github actions ci for backend and frontend`
   - `chore: dockerfiles and full-stack compose`
+  - `docs: explainer, owner questions and demo script`
 - **Reference Deliverables:**
   - `docs/queries.md`: Complete Cypher query catalog (Q-CONTEXT, Q-IMPACT, Q-ATTACK, Q-RANK, containment mutations, audit trail), traversal mechanics, and golden results reference (G1 to G9).
   - `README.md`: Full architectural overview, graph load-bearing analysis, data model tables, MCP tools catalog, safety policy truth table, exact setup commands, benchmark eval results, AI assistance disclosure, and limitations.
   - `.github/workflows/ci.yml`: GitHub Actions CI workflow executing FalkorDB service container, pytest test suite, eval harness, and frontend vitest/typecheck/build.
   - `backend/Dockerfile`, `frontend/Dockerfile`, `frontend/nginx.conf`, `docker-compose.yml`: Multi-stage Docker deployment with reverse proxying and SSE support.
+  - `docs/demo_script.md`: Detailed 2:30 presentation and recording walkthrough with second-by-second narration and visual cues.
+  - `docs/explainer.md`: Comprehensive technical explainer detailing FalkorDB GraphBLAS linear algebra, topological traversals, and deterministic safety gates.
+  - `docs/owner_questions.md`: Thorough FAQ answering key architectural questions (Graph vs Relational/RAG, hallucination prevention, safety boundaries, real-world integrations).
+- **Status:** DONE
+
 
 
 
