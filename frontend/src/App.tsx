@@ -6,27 +6,31 @@ import { GraphCanvas } from "@/components/GraphCanvas";
 import { TraceFeed } from "@/components/TraceFeed";
 import { RiskPanel } from "@/components/panels/RiskPanel";
 import { ApprovalCard } from "@/components/panels/ApprovalCard";
+import { FinalReportPanel } from "@/components/panels/FinalReportPanel";
 import { useIncidentStream } from "@/hooks/useIncidentStream";
 import { resetGraph } from "@/lib/api";
 
 /**
- * Root component rendering the incident response workspace with live graph highlighting.
+ * Root component rendering the incident response workspace with live graph highlighting and reporting.
  */
 export default function App(): JSX.Element {
   const {
     state: incidentState,
     startIncident,
     approve,
+    rollback,
     reset: resetStream,
   } = useIncidentStream();
 
   const [resetting, setResetting] = useState<boolean>(false);
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
 
   const handleReset = async () => {
     try {
       setResetting(true);
       await resetGraph();
       resetStream();
+      setSelectedCallId(null);
     } catch (err) {
       console.error("Failed to reset graph:", err);
     } finally {
@@ -88,7 +92,11 @@ export default function App(): JSX.Element {
             </CardTitle>
           </CardHeader>
           <div className="flex-1 overflow-hidden">
-            <TraceFeed items={incidentState.traceItems} />
+            <TraceFeed
+              items={incidentState.traceItems}
+              selectedCallId={selectedCallId}
+              onSelectCallId={setSelectedCallId}
+            />
           </div>
         </Card>
       </aside>
@@ -104,7 +112,7 @@ export default function App(): JSX.Element {
         />
       </main>
 
-      {/* Right Column: Risk & Approval Panels */}
+      {/* Right Column: Risk, Approval and Final Report Panels */}
       <aside className="w-80 flex-shrink-0 border-l border-border p-4 flex flex-col gap-4 overflow-y-auto">
         <RiskPanel
           score={incidentState.riskScore}
@@ -115,6 +123,15 @@ export default function App(): JSX.Element {
           approval={incidentState.pendingApproval}
           onApprove={approve}
         />
+
+        {incidentState.finalReport && (
+          <FinalReportPanel
+            report={incidentState.finalReport}
+            actions={incidentState.executedActions}
+            onRollback={rollback}
+            onSelectCallId={setSelectedCallId}
+          />
+        )}
 
         <Card className="flex-1">
           <CardHeader className="py-2 px-3 border-b border-border">

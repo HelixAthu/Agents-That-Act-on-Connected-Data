@@ -439,10 +439,10 @@ Log of task execution, command outputs, and commit hashes for verification.
   - `feat(web): live path highlighting from graph_visit events`
   - `feat(web): trace feed with expandable cypher`
   - `feat(web): risk panel and approval card`
-- **Risk Panel & Approval Card Details:**
-  - Composite risk score gauge with severity level indicators (LOW, ELEVATED, CRITICAL)
-  - Progress bars for all four risk components (Exploit Severity, PII Exposure, Blast Radius, Centrality)
-  - ApprovalCard appearing conditionally on `approval_required` events
-  - Dry-run blast radius impact visualization (targets before vs after containment)
-  - Action approval trigger invoking `POST /actions/{id}/approve`
+  - `feat(web): final report, rollback and export`
+- **Final Report & Rollback Details:**
+  - FinalReportPanel showing summary, findings with evidence references linking to trace feed items
+  - Containment verification metrics (targets before vs after)
+  - Action table with Rollback controls invoking `POST /actions/{id}/rollback`
+  - JSON report export button downloading timestamped incident reports
 - **Status:** IN_PROGRESS
