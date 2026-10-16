@@ -173,27 +173,45 @@ Log of task execution, command outputs, and commit hashes for verification.
 
 ---
 
-## T4. Scoring and Policy (Part 1: Scoring)
+## T4. Scoring and Policy
 
 - **Commits:**
-  - `feat: deterministic risk scoring with tests`
+  - `43338c2`: `feat: deterministic risk scoring with tests`
+  - `feat: containment policy gate with tests`
 - **Acceptance Output:**
   ```bash
-  $ pytest -v tests/test_scoring.py
+  $ pytest -v tests/test_scoring.py tests/test_policy.py
   ============================= test session starts ==============================
-  collected 9 items
+  collected 22 items
 
-  tests/test_scoring.py::test_compute_severity_edge_cases PASSED           [ 11%]
-  tests/test_scoring.py::test_compute_pii_score_edge_cases PASSED          [ 22%]
-  tests/test_scoring.py::test_compute_blast_score_edge_cases PASSED        [ 33%]
-  tests/test_scoring.py::test_compute_centrality_score_edge_cases PASSED   [ 44%]
-  tests/test_scoring.py::test_calculate_risk_weights PASSED                [ 55%]
-  tests/test_scoring.py::test_evaluate_risk_pure_output PASSED             [ 66%]
-  tests/test_scoring.py::test_g8_payments_gateway_risk_score PASSED        [ 77%]
-  tests/test_scoring.py::test_g8_config_service_risk_score PASSED          [ 88%]
-  tests/test_scoring.py::test_compute_target_risk_error_handling PASSED    [100%]
+  tests/test_scoring.py::test_compute_severity_edge_cases PASSED           [  4%]
+  tests/test_scoring.py::test_compute_pii_score_edge_cases PASSED          [  9%]
+  tests/test_scoring.py::test_compute_blast_score_edge_cases PASSED        [ 13%]
+  tests/test_scoring.py::test_compute_centrality_score_edge_cases PASSED   [ 18%]
+  tests/test_scoring.py::test_calculate_risk_weights PASSED                [ 22%]
+  tests/test_scoring.py::test_evaluate_risk_pure_output PASSED             [ 27%]
+  tests/test_scoring.py::test_g8_payments_gateway_risk_score PASSED        [ 31%]
+  tests/test_scoring.py::test_g8_config_service_risk_score PASSED          [ 36%]
+  tests/test_scoring.py::test_compute_target_risk_error_handling PASSED    [ 40%]
+  tests/test_policy.py::test_policy_truth_table_isolate_node_no_attack_path PASSED [ 45%]
+  tests/test_policy.py::test_policy_truth_table_isolate_node_tier1_customer_facing PASSED [ 50%]
+  tests/test_policy.py::test_policy_truth_table_isolate_node_high_risk_auto PASSED [ 54%]
+  tests/test_policy.py::test_policy_truth_table_isolate_node_moderate_risk_approval PASSED [ 59%]
+  tests/test_policy.py::test_policy_truth_table_revoke_role_not_on_attack_path PASSED [ 63%]
+  tests/test_policy.py::test_policy_truth_table_revoke_role_high_risk_auto PASSED [ 68%]
+  tests/test_policy.py::test_policy_truth_table_revoke_role_low_risk_approval PASSED [ 72%]
+  tests/test_policy.py::test_is_edge_on_attack_paths_helper PASSED         [ 77%]
+  tests/test_policy.py::test_g9_revoke_role_payments_gateway_auto PASSED   [ 81%]
+  tests/test_policy.py::test_g9_isolate_payments_gateway_approval_required PASSED [ 86%]
+  tests/test_policy.py::test_g9_isolate_config_service_denied PASSED       [ 90%]
+  tests/test_policy.py::test_risk_and_policy_score_determinism_across_3_runs PASSED [ 95%]
+  tests/test_policy.py::test_policy_error_handling PASSED                  [100%]
 
-  ============================== 9 passed in 0.35s ===============================
+  ============================== 22 passed in 1.17s ==============================
   ```
-- **Golden Values Asserted:** G8 risk scores (svc-payments-gateway ≈ 0.828, svc-config ≈ 0.514, within ±0.003).
-- **Status:** IN PROGRESS (scoring complete, policy next)
+- **Golden Values Asserted:**
+  - G8: Risk scores (`svc-payments-gateway` ≈ 0.828, `svc-config` ≈ 0.514, within ±0.003).
+  - G9: Policy outcomes (`REVOKE_ROLE` gateway/storage-manager -> `AUTO`, `ISOLATE_NODE` gateway -> `APPROVAL_REQUIRED`, `ISOLATE_NODE` config -> `DENIED`).
+  - Determinism: 3 consecutive runs produce identical scores and decisions.
+- **Status:** DONE
+
