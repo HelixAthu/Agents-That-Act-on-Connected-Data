@@ -96,29 +96,60 @@ class LiveAgent:
             for t in tools_metadata
         ]
 
-        session: LLMSession = self._preset_session or make_session(
-            provider=self.provider,
-            system=SYSTEM_PROMPT,
-            tools=tool_specs,
-        )
-
         # Context tracking
         visited_nodes: set[str] = set()
         recorded_tool_calls: list[ReportToolCall] = []
         recorded_actions: list[ReportAction] = []
         initial_attack_targets: list[str] = []
         final_attack_targets: list[str] = []
-        calls_made: int = 0
-        call_counter: Counter[tuple[str, str]] = Counter()
         deterministic_risk: float = 0.5
 
-        turn: LLMTurn = await session.send_user(alert_text)
-
-        # First turn hardening: if no tool call, request get_component_context
-        if not turn.tool_calls and not turn.text.strip():
-            turn = await session.send_user(
-                "You must call an infrastructure tool to investigate this alert. Start with get_component_context."
+        try:
+            session: LLMSession = self._preset_session or make_session(
+                provider=self.provider,
+                system=SYSTEM_PROMPT,
+                tools=tool_specs,
             )
+            turn: LLMTurn = await session.send_user(alert_text)
+            if not turn.tool_calls and not turn.text.strip():
+                turn = await session.send_user(
+                    "You must call an infrastructure tool to investigate this alert. Start with get_component_context."
+                )
+        except Exception as err:
+            err_msg = str(err)
+            logger.exception("Failed to initialize or invoke LLM session: %s", err)
+            if (
+                "API_KEY_INVALID" in err_msg
+                or "API key not valid" in err_msg
+                or "No API key was provided" in err_msg
+                or "400 INVALID_ARGUMENT" in err_msg
+            ):
+                friendly_msg = (
+                    "Gemini API key is invalid or not configured. Please configure a valid Gemini API key "
+                    "(starts with AIzaSy) in .env, or switch to 'Mock Agent' or 'Replay' mode."
+                )
+            else:
+                friendly_msg = f"LLM provider error ({self.provider}): {err_msg}"
+            await emit(
+                Event(
+                    seq=0,
+                    type=EventType.ERROR.value,
+                    data={"message": friendly_msg, "recoverable": False},
+                )
+            )
+            return self._build_fallback_report(
+                incident_id=incident_id,
+                summary=f"Incident response aborted: {friendly_msg}",
+                risk_score=deterministic_risk,
+                visited_nodes=visited_nodes,
+                calls=recorded_tool_calls,
+                actions=recorded_actions,
+                targets_before=initial_attack_targets,
+                targets_after=final_attack_targets,
+            )
+
+        calls_made: int = 0
+        call_counter: Counter[tuple[str, str]] = Counter()
 
         while True:
             if turn.text.strip():

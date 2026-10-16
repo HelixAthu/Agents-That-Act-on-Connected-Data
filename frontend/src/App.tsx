@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Film } from "lucide-react";
+import { Film, AlertTriangle } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,10 +52,37 @@ export default function App(): JSX.Element {
             <h1 className="text-lg font-bold tracking-tight">Blast Radius</h1>
             <Badge variant="outline" className="text-[10px]">v0.3-ui</Badge>
           </div>
-          <Badge variant={incidentState.status === "running" ? "default" : "outline"}>
+          <Badge
+            variant={
+              incidentState.status === "running"
+                ? "default"
+                : incidentState.status === "error"
+                ? "destructive"
+                : "outline"
+            }
+          >
             {incidentState.status.toUpperCase()}
           </Badge>
         </div>
+
+        {/* Agent Execution Error Alert */}
+        {incidentState.status === "error" && incidentState.error && (
+          <div className="rounded-lg border border-rose-500/80 bg-rose-950/40 p-2.5 text-xs text-rose-200 space-y-1.5 animate-in fade-in">
+            <div className="flex items-center gap-1.5 font-bold text-rose-300">
+              <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+              <span>Agent Execution Error</span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-rose-200/90 font-mono break-words">
+              {incidentState.error}
+            </p>
+            {incidentState.error.includes("Gemini API key") && (
+              <p className="text-[10px] text-muted-foreground pt-1 border-t border-rose-500/30">
+                Tip: Add a valid Gemini key (AIzaSy...) in <code className="text-amber-300">.env</code>, or switch to{" "}
+                <strong>Mock Agent</strong> or <strong>Replay</strong> mode.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Execution Mode Selector */}
         <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-muted/40 border border-border">

@@ -501,6 +501,7 @@ Log of task execution, command outputs, and commit hashes for verification.
   - `fix(api): accept optional body in approve endpoint and send json payload from web`
   - `fix(graph): propagate containment isolation and clear attack paths on canvas`
   - `fix(app): restore graph and report on action rollback and jump to trace evidence`
+  - `fix(live): load dotenv, format LLM errors gracefully, and surface execution error alerts in UI`
 - **Reference Deliverables:**
   - `docs/queries.md`: Complete Cypher query catalog (Q-CONTEXT, Q-IMPACT, Q-ATTACK, Q-RANK, containment mutations, audit trail), traversal mechanics, and golden results reference (G1 to G9).
   - `README.md`: Full architectural overview, graph load-bearing analysis, data model tables, MCP tools catalog, safety policy truth table, exact setup commands, benchmark eval results, AI assistance disclosure, and limitations.

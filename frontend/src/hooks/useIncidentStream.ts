@@ -79,8 +79,12 @@ export function useIncidentStream() {
         });
         eventSource.onmessage = handleMessage;
 
-        eventSource.onerror = (err) => {
-          console.error("SSE stream encountered an error:", err);
+        eventSource.onerror = () => {
+          if (eventSource.readyState === EventSource.CLOSED) {
+            cleanupStream();
+            return;
+          }
+          console.warn("SSE stream closed or interrupted.");
           cleanupStream();
         };
       } catch (err: unknown) {
