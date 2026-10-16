@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GraphCanvas } from "@/components/GraphCanvas";
 import { TraceFeed } from "@/components/TraceFeed";
+import { RiskPanel } from "@/components/panels/RiskPanel";
+import { ApprovalCard } from "@/components/panels/ApprovalCard";
 import { useIncidentStream } from "@/hooks/useIncidentStream";
 import { resetGraph } from "@/lib/api";
 
@@ -14,6 +16,7 @@ export default function App(): JSX.Element {
   const {
     state: incidentState,
     startIncident,
+    approve,
     reset: resetStream,
   } = useIncidentStream();
 
@@ -102,24 +105,16 @@ export default function App(): JSX.Element {
       </main>
 
       {/* Right Column: Risk & Approval Panels */}
-      <aside className="w-80 flex-shrink-0 border-l border-border p-4 flex flex-col gap-4">
-        <Card>
-          <CardHeader className="py-2 px-3 border-b border-border">
-            <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">
-              Risk Score
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 text-sm">
-            <div className="text-3xl font-mono font-bold text-primary">
-              {incidentState.riskScore.toFixed(3)}
-            </div>
-            {incidentState.isolatedNodes.size > 0 && (
-              <div className="mt-2 text-xs text-muted-foreground">
-                Isolated: {Array.from(incidentState.isolatedNodes).join(", ")}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <aside className="w-80 flex-shrink-0 border-l border-border p-4 flex flex-col gap-4 overflow-y-auto">
+        <RiskPanel
+          score={incidentState.riskScore}
+          components={incidentState.riskComponents}
+        />
+
+        <ApprovalCard
+          approval={incidentState.pendingApproval}
+          onApprove={approve}
+        />
 
         <Card className="flex-1">
           <CardHeader className="py-2 px-3 border-b border-border">
@@ -129,6 +124,11 @@ export default function App(): JSX.Element {
           </CardHeader>
           <CardContent className="p-3 text-xs text-muted-foreground">
             {incidentState.alertText || "No active incident loaded."}
+            {incidentState.isolatedNodes.size > 0 && (
+              <div className="mt-2 text-xs text-amber-400 font-semibold">
+                Isolated: {Array.from(incidentState.isolatedNodes).join(", ")}
+              </div>
+            )}
           </CardContent>
         </Card>
       </aside>

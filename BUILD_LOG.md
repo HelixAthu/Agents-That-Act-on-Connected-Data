@@ -438,9 +438,11 @@ Log of task execution, command outputs, and commit hashes for verification.
   - `feat(web): event reducer and SSE hook with tests`
   - `feat(web): live path highlighting from graph_visit events`
   - `feat(web): trace feed with expandable cypher`
-- **Trace Feed Details:**
-  - Autoscrolling audit log panel for thoughts, tool calls, results and actions
-  - Contextual Lucide icons and execution latency badges
-  - Monospace expandable drawers displaying query IDs (`Q-CONTEXT`, `Q-ATTACK`, etc.), input arguments, and executed Cypher
-  - Call ID selection and evidence reference linking support
+  - `feat(web): risk panel and approval card`
+- **Risk Panel & Approval Card Details:**
+  - Composite risk score gauge with severity level indicators (LOW, ELEVATED, CRITICAL)
+  - Progress bars for all four risk components (Exploit Severity, PII Exposure, Blast Radius, Centrality)
+  - ApprovalCard appearing conditionally on `approval_required` events
+  - Dry-run blast radius impact visualization (targets before vs after containment)
+  - Action approval trigger invoking `POST /actions/{id}/approve`
 - **Status:** IN_PROGRESS
