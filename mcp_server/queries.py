@@ -12,6 +12,21 @@ from mcp_server.db import run_ro, run_rw
 logger = logging.getLogger(__name__)
 
 Q_IMPACT_ID = "Q-IMPACT"
+Q_CONTEXT_ID = "Q-CONTEXT"
+Q_CONTEXT = """
+MATCH (n {id: $id})
+OPTIONAL MATCH (t:Team)-[:OWNS]->(n)
+OPTIONAL MATCH (v:Vulnerability)-[:AFFECTS]->(n)
+RETURN labels(n)[0] AS label, properties(n) AS props,
+       collect(DISTINCT t.id) AS owners, collect(DISTINCT properties(v)) AS vulns
+"""
+Q_NEIGHBORS_OUT = (
+    "MATCH (n {id: $id})-[r]->(o) RETURN type(r) AS rel, o.id AS other, r.isolated AS isolated"
+)
+Q_NEIGHBORS_IN = (
+    "MATCH (i)-[r]->(n {id: $id}) RETURN type(r) AS rel, i.id AS other, r.isolated AS isolated"
+)
+
 Q_OWNERS_ID = "Q-OWNERS"
 Q_OWNERS = "MATCH (t:Team)-[:OWNS]->(s:Service) WHERE s.id IN $ids RETURN s.id, t.id, t.name"
 
@@ -384,4 +399,57 @@ def rollback_role(
         "status": "ACTIVE",
         "query_id": Q_ROLLBACK_ROLE_ID,
         "ms": elapsed_ms,
+    }
+
+
+def get_component_context(
+    component_id: str,
+    graph: Graph | None = None,
+) -> dict[str, Any] | None:
+    """Retrieve node properties, owners, vulnerabilities, and adjacent relationships."""
+    if not component_id or not isinstance(component_id, str):
+        raise ValueError("component_id must be a non-empty string")
+
+    rows, elapsed_ms = run_ro(Q_CONTEXT, {"id": component_id}, graph=graph)
+    if not rows or rows[0][0] is None:
+        return None
+
+    row = rows[0]
+    label = str(row[0])
+    raw_props = dict(row[1]) if row[1] else {}
+    owners = [str(o) for o in row[2] if o is not None]
+    raw_vulns = [dict(v) for v in row[3] if v]
+
+    out_rows, ms_out = run_ro(Q_NEIGHBORS_OUT, {"id": component_id}, graph=graph)
+    in_rows, ms_in = run_ro(Q_NEIGHBORS_IN, {"id": component_id}, graph=graph)
+
+    outgoing = [{"rel": str(r[0]), "other": str(r[1]), "isolated": bool(r[2])} for r in out_rows]
+    incoming = [{"rel": str(r[0]), "other": str(r[1]), "isolated": bool(r[2])} for r in in_rows]
+
+    visited_nodes = {component_id}
+    visited_edges = set()
+
+    for out_item in outgoing:
+        visited_nodes.add(out_item["other"])
+        visited_edges.add(f"{component_id}|{out_item['rel']}|{out_item['other']}")
+
+    for in_item in incoming:
+        visited_nodes.add(in_item["other"])
+        visited_edges.add(f"{in_item['other']}|{in_item['rel']}|{component_id}")
+
+    return {
+        "id": component_id,
+        "label": label,
+        "props": raw_props,
+        "owners": owners,
+        "vulnerabilities": raw_vulns,
+        "outgoing": outgoing,
+        "incoming": incoming,
+        "node_ids": sorted(visited_nodes),
+        "edge_keys": sorted(visited_edges),
+        "query_id": Q_CONTEXT_ID,
+        "cypher": Q_CONTEXT.strip(),
+        "params": {"id": component_id},
+        "ms": round(elapsed_ms + ms_out + ms_in, 2),
+        "row_count": len(rows),
     }

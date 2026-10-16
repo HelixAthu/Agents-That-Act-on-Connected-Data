@@ -1,5 +1,5 @@
 falkordb
-mcp
+mcp<2
 pydantic>=2
 pydantic-settings
 fastapi
