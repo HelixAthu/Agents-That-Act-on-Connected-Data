@@ -436,9 +436,15 @@ Log of task execution, command outputs, and commit hashes for verification.
   - `feat(web): load graph and lay out with dagre`
   - `feat(web): custom node components with status styling`
   - `feat(web): event reducer and SSE hook with tests`
-- **Event Reducer & SSE Details:**
+  - `feat(web): live path highlighting from graph_visit events`
+- **Highlighting & Canvas State Details:**
   - Pure state reducer `reduceAgentEvent` maintaining graph highlights, status, risk, and approval state
   - `useIncidentStream` custom hook connecting to `/incidents/{id}/events` SSE endpoint
+  - Real-time highlight propagation to GraphCanvas:
+    - `inspect` visit: pulses node ring in sky-400
+    - `attack_path` visit: animates edges with red stroke and pulse rings on target nodes
+    - `action` execution: marks target node and edges as ISOLATED (dashed grey)
+    - `verification` target reduction: removes red path highlights from mitigated targets
   - Vitest acceptance test against canonical `replays/scenario_a.jsonl`:
     - Final risk score: 0.828 (verified)
     - Final isolated node set: {"svc-payments-gateway"} (verified)

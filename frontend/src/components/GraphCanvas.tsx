@@ -18,7 +18,7 @@ import { GraphPayload } from "@/types";
 import { ServiceNode } from "@/components/canvas/ServiceNode";
 import { DatabaseNode } from "@/components/canvas/DatabaseNode";
 import { IAMRoleNode } from "@/components/canvas/IAMRoleNode";
-import { CustomEdge } from "@/components/canvas/CustomEdge";
+import { CustomEdge, CustomEdgeData } from "@/components/canvas/CustomEdge";
 
 // Define nodeTypes and edgeTypes OUTSIDE the component to prevent re-creation
 const nodeTypes: NodeTypes = {
@@ -36,6 +36,11 @@ const edgeTypes: EdgeTypes = {
 export interface GraphCanvasProps {
   initialNodes?: FlowNode[];
   initialEdges?: FlowEdge[];
+  highlightedNodes?: Record<string, string>;
+  highlightedEdges?: Record<string, string>;
+  nodeStatuses?: Record<string, string>;
+  isolatedNodes?: Set<string>;
+  revokedRoles?: Set<string>;
   onGraphLoaded?: (payload: GraphPayload) => void;
   className?: string;
 }
@@ -46,6 +51,11 @@ export interface GraphCanvasProps {
 export function GraphCanvas({
   initialNodes,
   initialEdges,
+  highlightedNodes,
+  highlightedEdges,
+  nodeStatuses,
+  isolatedNodes,
+  revokedRoles,
   onGraphLoaded,
   className,
 }: GraphCanvasProps): JSX.Element {
@@ -92,6 +102,73 @@ export function GraphCanvas({
       setEdges(initialEdges);
     }
   }, [initialEdges, setEdges]);
+
+  // Synchronize live highlight and isolation states to canvas nodes
+  useEffect(() => {
+    if (!highlightedNodes && !nodeStatuses && !isolatedNodes) return;
+    setNodes((prevNodes) =>
+      prevNodes.map((node) => {
+        const highlightKind = highlightedNodes ? highlightedNodes[node.id] : undefined;
+        const currentStatus =
+          isolatedNodes && isolatedNodes.has(node.id)
+            ? "ISOLATED"
+            : (nodeStatuses && nodeStatuses[node.id]) || node.data.status;
+
+        if (
+          node.data.highlightKind === highlightKind &&
+          node.data.status === currentStatus
+        ) {
+          return node;
+        }
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            highlightKind,
+            status: currentStatus,
+          },
+        };
+      })
+    );
+  }, [highlightedNodes, nodeStatuses, isolatedNodes, setNodes]);
+
+  // Synchronize live attack path animations and edge isolation to canvas edges
+  useEffect(() => {
+    if (!highlightedEdges && !isolatedNodes && !revokedRoles) return;
+    setEdges((prevEdges) =>
+      prevEdges.map((edge) => {
+        const isAttackPath = Boolean(
+          highlightedEdges && highlightedEdges[edge.id] === "attack_path"
+        );
+        const edgeProps = (edge.data?.props as Record<string, unknown> | undefined);
+        const isIsolated = Boolean(
+          edgeProps?.isolated ||
+            (isolatedNodes && (isolatedNodes.has(edge.source) || isolatedNodes.has(edge.target))) ||
+            (revokedRoles && (revokedRoles.has(edge.target) || revokedRoles.has(edge.id)))
+        );
+
+        const currentData = edge.data as CustomEdgeData | undefined;
+        if (
+          currentData?.isAttackPath === isAttackPath &&
+          currentData?.isIsolated === isIsolated &&
+          edge.animated === isAttackPath
+        ) {
+          return edge;
+        }
+
+        return {
+          ...edge,
+          animated: isAttackPath,
+          data: {
+            ...edge.data,
+            isAttackPath,
+            isIsolated,
+          },
+        };
+      })
+    );
+  }, [highlightedEdges, isolatedNodes, revokedRoles, setEdges]);
 
   const memoizedNodeTypes = useMemo(() => nodeTypes, []);
   const memoizedEdgeTypes = useMemo(() => edgeTypes, []);
