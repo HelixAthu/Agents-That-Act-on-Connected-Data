@@ -165,13 +165,27 @@ export function reduceAgentEvent(
     }
 
     case "action": {
-      pendingApproval = null;
-      status = "running";
-
       const actionData = event.data || {};
       const actionType = String(actionData.action || actionData.type || "");
       const targetId = String(actionData.target_id || actionData.target || "");
       const actionStatus = String(actionData.status || "");
+
+      if (actionStatus === "EXECUTED" || actionStatus === "DENIED" || actionStatus === "ROLLED_BACK") {
+        pendingApproval = null;
+        status = "running";
+      } else if (actionData.policy === "APPROVAL_REQUIRED" && !pendingApproval) {
+        seenApprovalRequired = true;
+        pendingApproval = {
+          action_id: actionData.action_id,
+          action: actionType,
+          target_id: targetId,
+          reason: actionData.reason,
+          policy: actionData.policy,
+          targets_before: actionData.dry_run?.targets_before,
+          targets_after: actionData.dry_run?.targets_after,
+        };
+        status = "waiting_approval";
+      }
 
       if (actionStatus === "EXECUTED") {
         if (actionType === "ISOLATE_NODE" || actionType.includes("ISOLATE")) {

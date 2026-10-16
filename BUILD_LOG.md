@@ -497,6 +497,7 @@ Log of task execution, command outputs, and commit hashes for verification.
   - `docs: add demo video link`
   - `fix(web): unignore frontend lib modules and add missing utilities`
   - `fix(web): use /stream endpoint for live SSE and register event listeners`
+  - `fix(web): preserve pendingApproval when action is PROPOSED`
 - **Reference Deliverables:**
   - `docs/queries.md`: Complete Cypher query catalog (Q-CONTEXT, Q-IMPACT, Q-ATTACK, Q-RANK, containment mutations, audit trail), traversal mechanics, and golden results reference (G1 to G9).
   - `README.md`: Full architectural overview, graph load-bearing analysis, data model tables, MCP tools catalog, safety policy truth table, exact setup commands, benchmark eval results, AI assistance disclosure, and limitations.
