@@ -253,41 +253,31 @@ Log of task execution, command outputs, and commit hashes for verification.
 
 - **Commits:**
   - `8165796`: `feat(mcp): propose and execute containment with action state machine`
-  - `feat(mcp): rollback, notify-owners and record-finding tools`
+  - `eaea214`: `feat(mcp): rollback, notify-owners and record-finding tools`
+  - `test(mcp): write-tool and policy enforcement tests`
 - **Acceptance Output:**
   ```bash
-  $ pytest -v tests/test_mcp_tools.py
+  $ pytest -v tests/test_mcp_write_tools.py
   ============================= test session starts ==============================
-  collected 24 items
+  collected 7 items
 
-  tests/test_mcp_tools.py::test_get_component_context_success PASSED       [  4%]
-  tests/test_mcp_tools.py::test_get_component_context_not_found PASSED     [  8%]
-  tests/test_mcp_tools.py::test_get_component_context_invalid_input PASSED [ 12%]
-  tests/test_mcp_tools.py::test_get_failure_impact_tool PASSED             [ 16%]
-  tests/test_mcp_tools.py::test_get_failure_impact_invalid_hops PASSED     [ 20%]
-  tests/test_mcp_tools.py::test_find_attack_paths_tool PASSED              [ 25%]
-  tests/test_mcp_tools.py::test_find_attack_paths_invalid_hops PASSED      [ 29%]
-  tests/test_mcp_tools.py::test_rank_critical_components_tool PASSED       [ 33%]
-  tests/test_mcp_tools.py::test_rank_critical_components_invalid_top_n PASSED [ 37%]
-  tests/test_mcp_tools.py::test_run_readonly_cypher_success PASSED         [ 41%]
-  tests/test_mcp_tools.py::test_run_readonly_cypher_policy_denied PASSED   [ 45%]
-  tests/test_mcp_tools.py::test_compute_risk_tool_payments_gateway_success PASSED [ 50%]
-  tests/test_mcp_tools.py::test_compute_risk_tool_config_success PASSED   [ 54%]
-  tests/test_mcp_tools.py::test_compute_risk_tool_not_found PASSED        [ 58%]
-  tests/test_mcp_tools.py::test_compute_risk_tool_invalid_input PASSED    [ 62%]
-  tests/test_mcp_tools.py::test_propose_containment_revoke_role_auto_simulation PASSED [ 66%]
-  tests/test_mcp_tools.py::test_execute_containment_revoke_role_success PASSED [ 70%]
-  tests/test_mcp_tools.py::test_propose_and_execute_isolate_node_approval_required PASSED [ 75%]
-  tests/test_mcp_tools.py::test_propose_and_execute_isolate_node_denied PASSED [ 79%]
-  tests/test_mcp_tools.py::test_containment_invalid_inputs PASSED          [ 83%]
-  tests/test_mcp_tools.py::test_rollback_action_tool_success_and_errors PASSED [ 87%]
-  tests/test_mcp_tools.py::test_notify_owners_tool_appends_outbox_and_records_action PASSED [ 91%]
-  tests/test_mcp_tools.py::test_record_finding_tool_creates_finding_with_evidence PASSED [ 95%]
-  tests/test_mcp_tools.py::test_notify_and_finding_input_validations PASSED [100%]
+  tests/test_mcp_write_tools.py::test_g3_revoke_role_full_lifecycle_and_simulation PASSED [ 14%]
+  tests/test_mcp_write_tools.py::test_policy_enforcement_isolate_tier1_approval_flow PASSED [ 28%]
+  tests/test_mcp_write_tools.py::test_policy_enforcement_denied_containment_action PASSED [ 42%]
+  tests/test_mcp_write_tools.py::test_action_state_machine_illegal_transitions PASSED [ 57%]
+  tests/test_mcp_write_tools.py::test_notify_owners_outbox_format_and_action_audit PASSED [ 71%]
+  tests/test_mcp_write_tools.py::test_record_finding_audit_and_graph_evidence_links PASSED [ 85%]
+  tests/test_mcp_write_tools.py::test_concurrent_containment_lock_safety PASSED [100%]
 
-  ============================== 24 passed in 1.48s ==============================
+  ============================== 7 passed in 1.48s ===============================
   ```
-- **Status:** DONE (Tools 6, 7, 8, 9, 10 fully implemented and tested)
+- **Golden Values Asserted:**
+  - G3: Revoke role containment cuts attack path to `db-customer-profile` leaving only `db-user-billing`, and rollback completely restores attack path reachability.
+  - Policy Truth Table: `REVOKE_ROLE` on attack path -> `AUTO`, `ISOLATE_NODE` on Tier 1 customer-facing -> `APPROVAL_REQUIRED`, `ISOLATE_NODE` on `svc-config` -> `DENIED`.
+  - Action State Machine: `PROPOSED` -> `EXECUTED` -> `ROLLED_BACK`. Rejection of illegal transitions (cannot rollback unexecuted, cannot execute rolled-back, cannot re-execute).
+  - Concurrency: `_CONTAINMENT_LOCK` guarantees race-free sequential evaluation under concurrent simulation requests.
+- **Status:** DONE
+
 
 
 
