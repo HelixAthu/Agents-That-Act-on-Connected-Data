@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GraphCanvas } from "@/components/GraphCanvas";
+import { TraceFeed } from "@/components/TraceFeed";
 import { useIncidentStream } from "@/hooks/useIncidentStream";
 import { resetGraph } from "@/lib/api";
 
@@ -83,22 +84,9 @@ export default function App(): JSX.Element {
               Trace Feed ({incidentState.traceItems.length})
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-3 text-xs text-muted-foreground flex-1 overflow-auto">
-            {incidentState.traceItems.length === 0 ? (
-              <div>Awaiting agent execution...</div>
-            ) : (
-              <div className="space-y-2">
-                {incidentState.traceItems.map((item, idx) => (
-                  <div key={idx} className="border-b border-border/40 pb-1.5">
-                    <span className="font-mono text-[10px] text-primary mr-1">
-                      [{item.type}]
-                    </span>
-                    <span>{item.summary || item.text || item.tool}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
+          <div className="flex-1 overflow-hidden">
+            <TraceFeed items={incidentState.traceItems} />
+          </div>
         </Card>
       </aside>
 
