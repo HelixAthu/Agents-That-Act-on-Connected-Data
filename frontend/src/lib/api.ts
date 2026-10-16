@@ -70,7 +70,7 @@ export async function approveAction(
  */
 export async function rollbackAction(
   actionId: string
-): Promise<{ status: string; action_id: string }> {
+): Promise<{ status: string; action_id: string; target_id?: string; action?: string }> {
   const response = await fetch(`${BASE_URL}/actions/${actionId}/rollback`, {
     method: "POST",
   });

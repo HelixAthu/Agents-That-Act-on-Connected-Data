@@ -71,8 +71,26 @@ export function TraceFeed({
 
   // Autoscroll to bottom when new events arrive
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [items.length]);
+    if (!selectedCallId) {
+      endRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [items.length, selectedCallId]);
+
+  // When selectedCallId changes, auto-expand and smoothly scroll the tool call into center view
+  useEffect(() => {
+    if (!selectedCallId) return;
+
+    setExpandedCallIds((prev) => {
+      const next = new Set(prev);
+      next.add(selectedCallId);
+      return next;
+    });
+
+    const element = document.getElementById(`trace-item-${selectedCallId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [selectedCallId]);
 
   const toggleExpand = (callId: string) => {
     setExpandedCallIds((prev) => {
@@ -98,16 +116,18 @@ export function TraceFeed({
     <div className={cn("flex flex-col h-full overflow-y-auto space-y-2 p-2", className)}>
       {items.map((item, index) => {
         const itemKey = item.call_id || `${item.seq}-${index}`;
-        const isExpandable = Boolean(item.cypher || item.args);
+        const isExpandable = Boolean(item.cypher || item.args || item.call_id);
         const isExpanded = item.call_id ? expandedCallIds.has(item.call_id) : false;
         const isSelected = item.call_id && selectedCallId === item.call_id;
 
         return (
           <div
             key={itemKey}
+            id={item.call_id ? `trace-item-${item.call_id}` : undefined}
             className={cn(
               "rounded-lg border border-border/60 bg-card/60 p-2 text-xs transition-colors",
-              isSelected && "border-primary bg-primary/10 shadow-sm",
+              isSelected &&
+                "border-primary ring-2 ring-primary ring-offset-2 ring-offset-background bg-primary/20 shadow-md",
               isExpandable && "cursor-pointer hover:bg-card/90"
             )}
             onClick={() => {

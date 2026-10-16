@@ -257,4 +257,22 @@ async def test_approval_flow_pause_resume_and_rollback() -> None:
         assert rollback_data["status"] == "ROLLED_BACK"
         assert rollback_data["action_id"] == act_id
 
+        # Test second rollback is handled idempotently without error
+        dup_rollback_resp = await client.post(f"/actions/{act_id}/rollback")
+        assert dup_rollback_resp.status_code == 200
+        assert dup_rollback_resp.json()["status"] == "ROLLED_BACK"
+
+
+@pytest.mark.asyncio
+async def test_replay_action_rollback_succeeds() -> None:
+    """Assert rolling back a canonical replay containment action restores graph and returns 200."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/actions/act-c361ea6a/rollback")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ROLLED_BACK"
+        assert data["action_id"] == "act-c361ea6a"
+
+
 

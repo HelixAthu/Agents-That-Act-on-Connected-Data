@@ -26,7 +26,8 @@ export default function App(): JSX.Element {
 
   const [resetting, setResetting] = useState<boolean>(false);
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
-  const [isReplayMode, setIsReplayMode] = useState<boolean>(false);
+  const [executionMode, setExecutionMode] = useState<"live" | "mock" | "replay">("live");
+  const [resetKey, setResetKey] = useState<number>(0);
 
   const handleReset = async () => {
     try {
@@ -34,6 +35,7 @@ export default function App(): JSX.Element {
       await resetGraph();
       resetStream();
       setSelectedCallId(null);
+      setResetKey((prev) => prev + 1);
     } catch (err) {
       console.error("Failed to reset graph:", err);
     } finally {
@@ -43,7 +45,7 @@ export default function App(): JSX.Element {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-      {/* Left Column: Scenarios, Replay Toggle & Trace Feed */}
+      {/* Left Column: Scenarios, Execution Mode Selector & Trace Feed */}
       <aside className="w-96 flex-shrink-0 border-r border-border p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -55,21 +57,45 @@ export default function App(): JSX.Element {
           </Badge>
         </div>
 
-        {/* Replay Mode Toggle */}
-        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
-          <div className="flex items-center gap-1.5 text-xs font-medium">
-            <Film className="h-3.5 w-3.5 text-purple-400" />
-            <span>Replay Mode (600ms)</span>
+        {/* Execution Mode Selector */}
+        <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-muted/40 border border-border">
+          <div className="flex items-center justify-between text-xs font-medium">
+            <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">
+              Mode
+            </span>
+            <span className="text-[10px] font-mono font-semibold text-primary">
+              {executionMode.toUpperCase()}
+            </span>
           </div>
-          <Button
-            variant={isReplayMode ? "default" : "outline"}
-            size="sm"
-            className="h-6 text-[10px] px-2.5 font-semibold"
-            onClick={() => setIsReplayMode((prev) => !prev)}
-            disabled={incidentState.status === "running"}
-          >
-            {isReplayMode ? "ON" : "OFF"}
-          </Button>
+          <div className="grid grid-cols-3 gap-1">
+            <Button
+              variant={executionMode === "live" ? "default" : "outline"}
+              size="sm"
+              className="h-6 text-[10px] px-1 font-semibold"
+              onClick={() => setExecutionMode("live")}
+              disabled={incidentState.status === "running"}
+            >
+              Live LLM
+            </Button>
+            <Button
+              variant={executionMode === "mock" ? "default" : "outline"}
+              size="sm"
+              className="h-6 text-[10px] px-1 font-semibold"
+              onClick={() => setExecutionMode("mock")}
+              disabled={incidentState.status === "running"}
+            >
+              Mock Agent
+            </Button>
+            <Button
+              variant={executionMode === "replay" ? "default" : "outline"}
+              size="sm"
+              className="h-6 text-[10px] px-1 font-semibold"
+              onClick={() => setExecutionMode("replay")}
+              disabled={incidentState.status === "running"}
+            >
+              Replay
+            </Button>
+          </div>
         </div>
 
         {/* Scenario execution triggers */}
@@ -80,15 +106,15 @@ export default function App(): JSX.Element {
               variant="outline"
               size="sm"
               onClick={() => {
-                if (isReplayMode) {
+                if (executionMode === "replay") {
                   startReplay(scId.toLowerCase());
                 } else {
-                  startIncident(scId, "mock", false);
+                  startIncident(scId, executionMode, false);
                 }
               }}
               disabled={incidentState.status === "running"}
             >
-              {isReplayMode ? `Replay ${scId}` : `Scenario ${scId}`}
+              {executionMode === "replay" ? `Replay ${scId}` : `Scenario ${scId}`}
             </Button>
           ))}
         </div>
@@ -121,6 +147,7 @@ export default function App(): JSX.Element {
       {/* Center Column: Graph Canvas with Live Path Highlighting */}
       <main className="flex-1 relative h-full w-full overflow-hidden bg-background">
         <GraphCanvas
+          key={resetKey}
           highlightedNodes={incidentState.highlightedNodes}
           highlightedEdges={incidentState.highlightedEdges}
           nodeStatuses={incidentState.nodeStatuses}

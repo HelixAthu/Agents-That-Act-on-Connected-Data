@@ -125,8 +125,9 @@ export function FinalReportPanel({
                           key={refId}
                           type="button"
                           onClick={() => onSelectCallId && onSelectCallId(refId)}
+                          title={`Click to view tool call ${refId} in trace feed`}
                           className={cn(
-                            "inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 font-mono text-[9px]",
+                            "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 font-mono text-[9px] cursor-pointer",
                             "bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
                           )}
                         >

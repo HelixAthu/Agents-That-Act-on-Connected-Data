@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { AgentEvent, IncidentState } from "@/types";
+import { AgentEvent, IncidentState, TraceItem } from "@/types";
 import { createInitialIncidentState, reduceAgentEvent } from "@/lib/eventReducer";
 import {
   createIncident,
@@ -100,13 +100,62 @@ export function useIncidentStream() {
   }, []);
 
   const rollback = useCallback(async (actionId: string) => {
-    await apiRollbackAction(actionId);
-    setState((prevState) => ({
-      ...prevState,
-      executedActions: prevState.executedActions.map((act) =>
+    const res = await apiRollbackAction(actionId);
+    setState((prevState) => {
+      const targetAction =
+        prevState.executedActions.find((a) => a.action_id === actionId) ||
+        prevState.finalReport?.actions?.find((a) => a.action_id === actionId);
+
+      const targetId = res?.target_id || targetAction?.target;
+      const actionType = res?.action || targetAction?.type || "";
+
+      const nextIsolated = new Set(prevState.isolatedNodes);
+      const nextNodeStatuses = { ...prevState.nodeStatuses };
+      const nextRevoked = new Set(prevState.revokedRoles);
+
+      if (targetId) {
+        if (
+          actionType === "ISOLATE_NODE" ||
+          actionType.includes("ISOLATE") ||
+          actionType === "CONTAINMENT"
+        ) {
+          nextIsolated.delete(targetId);
+          delete nextNodeStatuses[targetId];
+        } else if (actionType === "REVOKE_ROLE" || actionType.includes("REVOKE")) {
+          nextRevoked.delete(targetId);
+        }
+      }
+
+      const updatedActions = prevState.executedActions.map((act) =>
         act.action_id === actionId ? { ...act, status: "ROLLED_BACK" } : act
-      ),
-    }));
+      );
+
+      const updatedFinalReport = prevState.finalReport
+        ? {
+            ...prevState.finalReport,
+            actions: (prevState.finalReport.actions || []).map((act) =>
+              act.action_id === actionId ? { ...act, status: "ROLLED_BACK" } : act
+            ),
+          }
+        : null;
+
+      const rollbackTraceItem: TraceItem = {
+        seq: (prevState.events[prevState.events.length - 1]?.seq || 0) + 1,
+        ts: new Date().toISOString(),
+        type: "action",
+        summary: `Rolled back containment action ${actionId}: restored ${targetId || actionId}`,
+      };
+
+      return {
+        ...prevState,
+        isolatedNodes: nextIsolated,
+        nodeStatuses: nextNodeStatuses,
+        revokedRoles: nextRevoked,
+        executedActions: updatedActions,
+        finalReport: updatedFinalReport,
+        traceItems: [...prevState.traceItems, rollbackTraceItem],
+      };
+    });
   }, []);
 
   const reset = useCallback(() => {

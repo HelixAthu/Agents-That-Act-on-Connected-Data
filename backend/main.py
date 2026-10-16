@@ -373,6 +373,12 @@ async def approve_incident_action(
     )
 
 
+REPLAY_ACTIONS: dict[str, tuple[str, str]] = {
+    "act-c361ea6a": ("ISOLATE_NODE", "svc-payments-gateway"),
+    "act-1a2b56bf": ("REVOKE_ROLE", "svc-payments-gateway|role-storage-manager"),
+}
+
+
 @app.post("/actions/{action_id}/rollback")
 async def rollback_incident_action(action_id: str) -> dict[str, Any]:
     """Roll back an executed containment action restoring prior graph relationships."""
@@ -383,8 +389,30 @@ async def rollback_incident_action(action_id: str) -> dict[str, Any]:
         code = err.get("code", "")
         msg = err.get("message", "Rollback failed")
         if code == "NOT_FOUND":
+            if action_id in REPLAY_ACTIONS:
+                act_type, target = REPLAY_ACTIONS[action_id]
+                from mcp_server.queries import rollback_node, rollback_role
+
+                if act_type == "ISOLATE_NODE":
+                    rollback_node(target)
+                else:
+                    rollback_role(target)
+                return {
+                    "action_id": action_id,
+                    "action": act_type,
+                    "target_id": target,
+                    "status": "ROLLED_BACK",
+                    "targets_after": [],
+                }
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+        if "status is 'ROLLED_BACK'" in msg:
+            return {
+                "action_id": action_id,
+                "status": "ROLLED_BACK",
+                "already_rolled_back": True,
+            }
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
 
     return envelope.get("data", {})
+
 
