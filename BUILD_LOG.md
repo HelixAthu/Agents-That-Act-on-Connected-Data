@@ -398,6 +398,8 @@ Log of task execution, command outputs, and commit hashes for verification.
 
 - **Commits:**
   - `feat(api): fastapi routes, graph endpoint and SSE stream`
+  - `feat(api): approval endpoint with pause and resume`
+
 
 
 

@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 import pytest
 
-from backend.main import app
+from backend.main import app, pending_approvals
 from seed.seed_graph import seed_graph
 
 
@@ -172,3 +172,89 @@ async def test_incident_sse_stream() -> None:
         event_names = [ev["event"] for ev in received_events]
         assert "incident_started" in event_names
         assert "final_report" in event_names
+
+
+@pytest.mark.asyncio
+async def test_approve_nonexistent_action_returns_404() -> None:
+    """Assert POST /actions/{id}/approve returns 404 when no pending approval exists."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/actions/act-nonexistent/approve",
+            json={"approved_by": "admin@corp"},
+        )
+        assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_rollback_nonexistent_action_returns_404() -> None:
+    """Assert POST /actions/{id}/rollback returns 404 for unknown action."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/actions/act-nonexistent/rollback")
+        assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_approval_flow_pause_resume_and_rollback() -> None:
+    """Assert approval pause on scenario A with AUTO_APPROVE=false, resume via approval, and rollback."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        create_resp = await client.post(
+            "/incidents",
+            json={"scenario": "A", "mode": "mock", "auto_approve": False},
+        )
+        assert create_resp.status_code == 200
+        inc_id: str = create_resp.json()["incident_id"]
+
+        captured_action_ids: list[str] = []
+
+        # Background task that submits human approval once the agent enters approval pause
+        async def submit_approval_when_ready() -> None:
+            for _ in range(100):
+                await asyncio.sleep(0.05)
+                if pending_approvals:
+                    act_id = next(iter(pending_approvals.keys()))
+                    captured_action_ids.append(act_id)
+                    approve_resp = await client.post(
+                        f"/actions/{act_id}/approve",
+                        json={"approved_by": "secops@corp"},
+                    )
+                    assert approve_resp.status_code == 200
+                    assert approve_resp.json()["ok"] is True
+                    return
+            raise TimeoutError("No pending approval appeared within timeout")
+
+        approval_task = asyncio.create_task(submit_approval_when_ready())
+
+        received_types: list[str] = []
+        async with client.stream("GET", f"/incidents/{inc_id}/stream") as stream_resp:
+            assert stream_resp.status_code == 200
+            current_event_type: str = ""
+            async for raw_line in stream_resp.aiter_lines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                if line.startswith("event:"):
+                    current_event_type = line[len("event:") :].strip()
+                elif line.startswith("data:"):
+                    received_types.append(current_event_type)
+                    if current_event_type == "final_report":
+                        break
+
+        await approval_task
+
+        assert len(captured_action_ids) == 1
+        act_id = captured_action_ids[0]
+        assert "approval_required" in received_types
+        assert "verification" in received_types
+        assert "final_report" in received_types
+
+        # Test rolling back the approved and executed action
+        rollback_resp = await client.post(f"/actions/{act_id}/rollback")
+        assert rollback_resp.status_code == 200
+        rollback_data = rollback_resp.json()
+        assert rollback_data["status"] == "ROLLED_BACK"
+        assert rollback_data["action_id"] == act_id
+
+

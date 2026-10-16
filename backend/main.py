@@ -18,8 +18,9 @@ from sse_starlette.sse import EventSourceResponse
 
 from backend.agent_mock import MockAgent
 from backend.events import Event, EventBus, EventType
+from backend.mcp_bridge import MCPBridge
 from backend.scenarios import get_scenario, list_scenarios
-from mcp_server.queries import get_graph_health, get_ui_graph
+from mcp_server.queries import approve_action, get_graph_health, get_ui_graph
 from seed.seed_graph import seed_graph
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -165,12 +166,19 @@ async def _run_agent_task(
 ) -> None:
     """Execute the incident agent in a background task and route events through the incident bus."""
     async def emit_wrapper(event: Event) -> None:
+        etype = event.type.value if hasattr(event.type, "value") else str(event.type)
+        if etype == "approval_required":
+            act_id = str(event.data.get("action_id", "")).strip() if isinstance(event.data, dict) else ""
+            if act_id and act_id not in pending_approvals:
+                loop = asyncio.get_running_loop()
+                pending_approvals[act_id] = loop.create_future()
         await bus.emit(event)
 
     async def approval_handler(action_id: str) -> bool:
-        loop = asyncio.get_running_loop()
-        future: asyncio.Future[bool] = loop.create_future()
-        pending_approvals[action_id] = future
+        if action_id not in pending_approvals:
+            loop = asyncio.get_running_loop()
+            pending_approvals[action_id] = loop.create_future()
+        future = pending_approvals[action_id]
         try:
             return await asyncio.wait_for(future, timeout=60.0)
         except TimeoutError:
@@ -309,3 +317,73 @@ async def admin_reset() -> dict[str, bool]:
     incidents_registry.clear()
     pending_approvals.clear()
     return {"ok": True}
+
+
+class ActionApproveRequest(BaseModel):
+    """Payload to approve a pending containment action."""
+
+    approved_by: str = "security-lead@corp"
+
+
+class ActionApproveResponse(BaseModel):
+    """Response returned upon approving an action."""
+
+    ok: bool
+    action_id: str
+    approved_by: str
+
+
+@app.post("/actions/{action_id}/approve", response_model=ActionApproveResponse)
+async def approve_incident_action(
+    action_id: str,
+    req: ActionApproveRequest,
+) -> ActionApproveResponse:
+    """Approve a pending containment action and resume paused agent execution."""
+    logger.info(
+        "Received approval request for action '%s'. Current pending: %s",
+        action_id,
+        list(pending_approvals.keys()),
+    )
+    future = pending_approvals.get(action_id)
+    if future is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"No pending approval found for action '{action_id}'. "
+                f"Known pending: {list(pending_approvals.keys())}"
+            ),
+        )
+    if future.done():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Approval for action '{action_id}' has already been completed.",
+        )
+
+    # Record approval in the database
+    approve_action(action_id, approved_by=req.approved_by)
+
+    # Resume paused agent task
+    future.set_result(True)
+
+    return ActionApproveResponse(
+        ok=True,
+        action_id=action_id,
+        approved_by=req.approved_by,
+    )
+
+
+@app.post("/actions/{action_id}/rollback")
+async def rollback_incident_action(action_id: str) -> dict[str, Any]:
+    """Roll back an executed containment action restoring prior graph relationships."""
+    bridge = MCPBridge()
+    envelope = await bridge.call("rollback_action", {"action_id": action_id})
+    if not envelope.get("ok", False):
+        err = envelope.get("error", {})
+        code = err.get("code", "")
+        msg = err.get("message", "Rollback failed")
+        if code == "NOT_FOUND":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
+
+    return envelope.get("data", {})
+
