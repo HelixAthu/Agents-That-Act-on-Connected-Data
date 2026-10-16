@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
+import uuid
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.db import run_ro
 from mcp_server.models import ErrorCode, VisitKind, format_error, format_success
+from mcp_server.policy import ContainmentAction, PolicyDecision, evaluate_containment_policy
 from mcp_server.queries import (
     find_attack_paths as execute_find_attack_paths,
+)
+from mcp_server.queries import (
+    get_action as fetch_action,
 )
 from mcp_server.queries import (
     get_component_context as fetch_component_context,
@@ -20,11 +26,22 @@ from mcp_server.queries import (
     get_failure_impact as execute_failure_impact,
 )
 from mcp_server.queries import (
+    isolate_node,
+    record_action,
+    revoke_role,
+    rollback_node,
+    rollback_role,
+    set_action_executed,
+)
+from mcp_server.queries import (
     rank_critical_components as execute_criticality_ranking,
 )
 from mcp_server.scoring import compute_target_risk
 
 logger = logging.getLogger(__name__)
+
+# Global containment lock ensuring safe non-transactional simulation and execution writes
+_CONTAINMENT_LOCK = asyncio.Lock()
 
 FORBIDDEN_CYPHER_KEYWORDS = re.compile(
     r"\b(CREATE|MERGE|SET|DELETE|REMOVE|DROP|CALL)\b",
@@ -231,6 +248,223 @@ def compute_risk(target_id: str) -> str:
     except Exception as err:
         logger.exception("Error in compute_risk for '%s'", cleaned_id)
         return format_error(ErrorCode.DB_ERROR, f"Database error computing risk: {err}")
+
+
+@mcp.tool()
+async def propose_containment(
+    action: str,
+    target_id: str,
+    incident_id: str,
+) -> str:
+    """Propose a containment action (ISOLATE_NODE or REVOKE_ROLE) for policy evaluation and dry-run
+    attack path simulation without modifying persistent graph state.
+
+    Use when: evaluating containment options for an incident or preparing an action for approval.
+    Do NOT use when: executing approved actions or running read-only blast radius queries.
+    """
+    if not action or not isinstance(action, str) or not action.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "action must be a non-empty string")
+    if not target_id or not isinstance(target_id, str) or not target_id.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "target_id must be a non-empty string")
+    if not incident_id or not isinstance(incident_id, str) or not incident_id.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "incident_id must be a non-empty string")
+
+    normalized_action: str = action.strip().upper()
+    cleaned_target: str = target_id.strip()
+    cleaned_incident: str = incident_id.strip()
+
+    valid_actions = {ContainmentAction.ISOLATE_NODE.value, ContainmentAction.REVOKE_ROLE.value}
+    if normalized_action not in valid_actions:
+        return format_error(
+            ErrorCode.INVALID_INPUT,
+            f"action must be 'ISOLATE_NODE' or 'REVOKE_ROLE', got '{action}'",
+        )
+
+    if normalized_action == ContainmentAction.REVOKE_ROLE.value and "|" not in cleaned_target:
+        return format_error(
+            ErrorCode.INVALID_INPUT,
+            "target_id for REVOKE_ROLE must be in 'service_id|role_id' format",
+        )
+
+    try:
+        policy_eval = evaluate_containment_policy(normalized_action, cleaned_target)
+        policy_decision = policy_eval["policy"]
+        risk_score = float(policy_eval["risk"])
+
+        source_id: str = (
+            cleaned_target.split("|", 1)[0]
+            if normalized_action == ContainmentAction.REVOKE_ROLE.value
+            else cleaned_target
+        )
+
+        before_res = execute_find_attack_paths(source_id=source_id, max_hops=6)
+        paths_before: int = len(before_res.get("paths", []))
+        targets_before: list[str] = sorted({p["target"] for p in before_res.get("paths", [])})
+
+        targets_after: list[str] = targets_before
+        paths_after: int = paths_before
+
+        if policy_decision["decision"] != PolicyDecision.DENIED.value:
+            async with _CONTAINMENT_LOCK:
+                try:
+                    if normalized_action == ContainmentAction.ISOLATE_NODE.value:
+                        isolate_node(cleaned_target)
+                    else:
+                        revoke_role(cleaned_target)
+
+                    after_res = execute_find_attack_paths(source_id=source_id, max_hops=6)
+                    paths_after = len(after_res.get("paths", []))
+                    targets_after = sorted({p["target"] for p in after_res.get("paths", [])})
+                finally:
+                    if normalized_action == ContainmentAction.ISOLATE_NODE.value:
+                        rollback_node(cleaned_target)
+                    else:
+                        rollback_role(cleaned_target)
+
+        action_id: str = f"act-{uuid.uuid4().hex[:8]}"
+        mode: str = "AUTO" if policy_decision["decision"] == PolicyDecision.AUTO.value else "MANUAL"
+
+        record_action(
+            incident_id=cleaned_incident,
+            action_id=action_id,
+            action_type=normalized_action,
+            target_id=cleaned_target,
+            status="PROPOSED",
+            mode=mode,
+            policy_decision=policy_decision["decision"],
+            policy_reason=policy_decision["reason"],
+        )
+
+        data: dict[str, Any] = {
+            "action_id": action_id,
+            "policy": policy_decision,
+            "risk": risk_score,
+            "simulation": {
+                "targets_before": targets_before,
+                "targets_after": targets_after,
+                "paths_before": paths_before,
+                "paths_after": paths_after,
+            },
+        }
+
+        edge_keys: list[str] = []
+        if normalized_action == ContainmentAction.REVOKE_ROLE.value:
+            svc_part, role_part = cleaned_target.split("|", 1)
+            edge_keys.append(f"{svc_part}|ASSUMES_ROLE|{role_part}")
+
+        visit = {
+            "kind": VisitKind.ACTION.value,
+            "node_ids": [source_id],
+            "edge_keys": edge_keys,
+        }
+        evidence = {
+            "query_id": "Q-PROPOSE-CONTAINMENT",
+            "cypher": "RECORD_ACTION (Incident-[:TOOK]->Action)",
+            "params": {"incident_id": cleaned_incident, "action": normalized_action, "target": cleaned_target},
+            "ms": 1.0,
+            "row_count": 1,
+        }
+        return format_success(data=data, visit=visit, evidence=evidence)
+
+    except KeyError:
+        return format_error(ErrorCode.NOT_FOUND, f"Component '{cleaned_target}' was not found in the graph")
+    except Exception as err:
+        logger.exception("Error proposing containment for '%s'", cleaned_target)
+        return format_error(ErrorCode.DB_ERROR, f"Database error proposing containment: {err}")
+
+
+@mcp.tool()
+async def execute_containment(action_id: str) -> str:
+    """Execute a previously proposed containment action following policy validation and approval.
+
+    Use when: executing an AUTO-approved containment action or an action that has received human approval.
+    Do NOT use when: proposing actions, simulating containment effects, or executing denied actions.
+    """
+    if not action_id or not isinstance(action_id, str) or not action_id.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "action_id must be a non-empty string")
+
+    cleaned_action_id: str = action_id.strip()
+    try:
+        action = fetch_action(cleaned_action_id)
+        if action is None:
+            return format_error(ErrorCode.NOT_FOUND, f"Action '{cleaned_action_id}' not found")
+
+        status: str = action.get("status", "")
+        if status == "EXECUTED":
+            return format_error(
+                ErrorCode.INVALID_INPUT,
+                f"Action '{cleaned_action_id}' has already been executed",
+            )
+        if status == "ROLLED_BACK":
+            return format_error(
+                ErrorCode.INVALID_INPUT,
+                f"Action '{cleaned_action_id}' has already been rolled back",
+            )
+
+        policy_decision: str = action.get("policy_decision", "")
+        if policy_decision == PolicyDecision.DENIED.value:
+            return format_error(
+                ErrorCode.POLICY_DENIED,
+                f"Cannot execute denied action: {action.get('policy_reason')}",
+            )
+
+        approved_by = action.get("approved_by")
+        if policy_decision == PolicyDecision.APPROVAL_REQUIRED.value and not approved_by:
+            return format_error(
+                ErrorCode.APPROVAL_REQUIRED,
+                f"Action '{cleaned_action_id}' requires human approval before execution: "
+                f"{action.get('policy_reason')}",
+            )
+
+        action_type: str = action.get("type", "")
+        target_id: str = action.get("target_id", "")
+        source_id: str = (
+            target_id.split("|", 1)[0]
+            if action_type == ContainmentAction.REVOKE_ROLE.value
+            else target_id
+        )
+
+        async with _CONTAINMENT_LOCK:
+            if action_type == ContainmentAction.ISOLATE_NODE.value:
+                isolate_node(target_id)
+            else:
+                revoke_role(target_id)
+
+            post_res = execute_find_attack_paths(source_id=source_id, max_hops=6)
+            paths_after: int = len(post_res.get("paths", []))
+            targets_after: list[str] = sorted({p["target"] for p in post_res.get("paths", [])})
+
+            set_action_executed(cleaned_action_id)
+
+        data: dict[str, Any] = {
+            "action_id": cleaned_action_id,
+            "status": "EXECUTED",
+            "targets_after": targets_after,
+            "paths_after": paths_after,
+        }
+
+        edge_keys: list[str] = []
+        if action_type == ContainmentAction.REVOKE_ROLE.value:
+            svc_part, role_part = target_id.split("|", 1)
+            edge_keys.append(f"{svc_part}|ASSUMES_ROLE|{role_part}")
+
+        visit = {
+            "kind": VisitKind.ACTION.value,
+            "node_ids": [source_id],
+            "edge_keys": edge_keys,
+        }
+        evidence = {
+            "query_id": "Q-EXECUTE-CONTAINMENT",
+            "cypher": "APPLY_CONTAINMENT_WRITE AND SET Action.status = 'EXECUTED'",
+            "params": {"action_id": cleaned_action_id},
+            "ms": 1.0,
+            "row_count": 1,
+        }
+        return format_success(data=data, visit=visit, evidence=evidence)
+
+    except Exception as err:
+        logger.exception("Error executing containment for '%s'", cleaned_action_id)
+        return format_error(ErrorCode.DB_ERROR, f"Database error executing containment: {err}")
 
 
 @mcp.tool()

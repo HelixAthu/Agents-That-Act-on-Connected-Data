@@ -4,11 +4,18 @@ import json
 
 import pytest
 
+from mcp_server.queries import (
+    approve_action,
+    rollback_node,
+    rollback_role,
+)
 from mcp_server.server import (
     compute_risk,
+    execute_containment,
     find_attack_paths,
     get_component_context,
     get_failure_impact,
+    propose_containment,
     rank_critical_components,
     run_readonly_cypher,
 )
@@ -216,4 +223,133 @@ def test_compute_risk_tool_invalid_input() -> None:
     payload = json.loads(compute_risk(""))
     assert payload["ok"] is False
     assert payload["error"]["code"] == "INVALID_INPUT"
+
+
+@pytest.mark.asyncio
+async def test_propose_containment_revoke_role_auto_simulation() -> None:
+    """Assert Tool 6 propose_containment evaluates AUTO, runs dry-run simulation, and leaves graph untouched."""
+    res = await propose_containment(
+        action="REVOKE_ROLE",
+        target_id="svc-payments-gateway|role-storage-manager",
+        incident_id="inc-test-001",
+    )
+    payload = json.loads(res)
+    assert payload["ok"] is True
+    data = payload["data"]
+
+    assert data["policy"]["decision"] == "AUTO"
+    assert data["action_id"].startswith("act-")
+
+    sim = data["simulation"]
+    assert sim["paths_before"] == 2
+    assert sim["paths_after"] == 1
+    assert sim["targets_before"] == ["db-customer-profile", "db-user-billing"]
+    assert sim["targets_after"] == ["db-user-billing"]
+
+    # Verify simulation was a dry run: graph still has 2 attack paths
+    verify_res = json.loads(find_attack_paths("svc-payments-gateway", max_hops=6))
+    assert len(verify_res["data"]["paths"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_execute_containment_revoke_role_success() -> None:
+    """Assert Tool 7 execute_containment applies write, updates Action to EXECUTED, and post-state matches."""
+    res_prop = await propose_containment(
+        action="REVOKE_ROLE",
+        target_id="svc-payments-gateway|role-storage-manager",
+        incident_id="inc-test-002",
+    )
+    act_id = json.loads(res_prop)["data"]["action_id"]
+
+    try:
+        res_exec = await execute_containment(act_id)
+        payload = json.loads(res_exec)
+        assert payload["ok"] is True
+        assert payload["data"]["status"] == "EXECUTED"
+        assert payload["data"]["paths_after"] == 1
+        assert payload["data"]["targets_after"] == ["db-user-billing"]
+
+        # Verify live graph now reflects the mutation (only 1 attack path left)
+        live_paths = json.loads(find_attack_paths("svc-payments-gateway", max_hops=6))
+        assert len(live_paths["data"]["paths"]) == 1
+    finally:
+        # Restore graph to clean state
+        rollback_role("svc-payments-gateway|role-storage-manager")
+        restored = json.loads(find_attack_paths("svc-payments-gateway", max_hops=6))
+        assert len(restored["data"]["paths"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_propose_and_execute_isolate_node_approval_required() -> None:
+    """Assert Tool 6/7 enforce APPROVAL_REQUIRED gate and permit execution upon approval."""
+    res_prop = await propose_containment(
+        action="ISOLATE_NODE",
+        target_id="svc-payments-gateway",
+        incident_id="inc-test-003",
+    )
+    payload_prop = json.loads(res_prop)
+    assert payload_prop["ok"] is True
+    assert payload_prop["data"]["policy"]["decision"] == "APPROVAL_REQUIRED"
+    act_id = payload_prop["data"]["action_id"]
+
+    # Execution without approval must fail with APPROVAL_REQUIRED
+    res_unapproved = await execute_containment(act_id)
+    payload_unapproved = json.loads(res_unapproved)
+    assert payload_unapproved["ok"] is False
+    assert payload_unapproved["error"]["code"] == "APPROVAL_REQUIRED"
+
+    try:
+        # Approve action and execute
+        approve_action(act_id, approved_by="sec-admin")
+        res_approved = await execute_containment(act_id)
+        payload_approved = json.loads(res_approved)
+        assert payload_approved["ok"] is True
+        assert payload_approved["data"]["status"] == "EXECUTED"
+        assert payload_approved["data"]["paths_after"] == 0
+        assert payload_approved["data"]["targets_after"] == []
+    finally:
+        # Rollback node to restore graph
+        rollback_node("svc-payments-gateway")
+        restored = json.loads(find_attack_paths("svc-payments-gateway", max_hops=6))
+        assert len(restored["data"]["paths"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_propose_and_execute_isolate_node_denied() -> None:
+    """Assert Tool 6/7 enforce POLICY_DENIED and prevent execution of denied actions."""
+    res_prop = await propose_containment(
+        action="ISOLATE_NODE",
+        target_id="svc-config",
+        incident_id="inc-test-004",
+    )
+    payload_prop = json.loads(res_prop)
+    assert payload_prop["ok"] is True
+    assert payload_prop["data"]["policy"]["decision"] == "DENIED"
+    act_id = payload_prop["data"]["action_id"]
+
+    res_exec = await execute_containment(act_id)
+    payload_exec = json.loads(res_exec)
+    assert payload_exec["ok"] is False
+    assert payload_exec["error"]["code"] == "POLICY_DENIED"
+
+
+@pytest.mark.asyncio
+async def test_containment_invalid_inputs() -> None:
+    """Assert validation errors for malformed action names, missing pipes, and unknown actions."""
+    # Invalid action
+    res_bad_action = await propose_containment("DROP_DATABASE", "svc-config", "inc-005")
+    assert json.loads(res_bad_action)["error"]["code"] == "INVALID_INPUT"
+
+    # Revoke role without pipe
+    res_bad_target = await propose_containment("REVOKE_ROLE", "svc-config", "inc-005")
+    assert json.loads(res_bad_target)["error"]["code"] == "INVALID_INPUT"
+
+    # Execute missing action
+    res_missing_action = await execute_containment("act-nonexistent")
+    assert json.loads(res_missing_action)["error"]["code"] == "NOT_FOUND"
+
+    # Execute empty string
+    res_empty_action = await execute_containment("")
+    assert json.loads(res_empty_action)["error"]["code"] == "INVALID_INPUT"
+
 

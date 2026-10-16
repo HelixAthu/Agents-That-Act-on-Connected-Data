@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
 from typing import Any
 
@@ -74,6 +75,45 @@ WITH n MATCH (n)-[r]-() SET r.isolated = false
 Q_ROLLBACK_ROLE_ID = "Q-ROLLBACK-ROLE"
 Q_ROLLBACK_ROLE = """
 MATCH (s:Service {id: $svc})-[r:ASSUMES_ROLE]->(ro:IAMRole {id: $role}) SET r.isolated = false
+"""
+
+Q_RECORD_ACTION_ID = "Q-RECORD-ACTION"
+Q_RECORD_ACTION = """
+MERGE (i:Incident {id: $inc})
+CREATE (a:Action {
+    id: $aid,
+    type: $type,
+    target_id: $target,
+    status: $status,
+    mode: $mode,
+    policy_decision: $decision,
+    policy_reason: $reason,
+    created_at: $ts,
+    reversed: false
+})
+CREATE (i)-[:TOOK]->(a)
+RETURN a.id AS aid
+"""
+
+Q_GET_ACTION_ID = "Q-GET-ACTION"
+Q_GET_ACTION = """
+MATCH (a:Action {id: $aid})
+RETURN a.id AS id, a.type AS type, a.target_id AS target_id, a.status AS status,
+       a.mode AS mode, a.policy_decision AS policy_decision, a.policy_reason AS policy_reason,
+       a.created_at AS created_at, a.approved_by AS approved_by, a.approved_at AS approved_at,
+       a.executed_at AS executed_at, a.reversed AS reversed
+"""
+
+Q_EXECUTE_ACTION_UPDATE_ID = "Q-EXECUTE-ACTION-UPDATE"
+Q_EXECUTE_ACTION_UPDATE = """
+MATCH (a:Action {id: $aid})
+SET a.status = 'EXECUTED', a.executed_at = $ts
+"""
+
+Q_APPROVE_ACTION_ID = "Q-APPROVE-ACTION"
+Q_APPROVE_ACTION = """
+MATCH (a:Action {id: $aid})
+SET a.approved_by = $approved_by, a.approved_at = $ts
 """
 
 
@@ -453,3 +493,103 @@ def get_component_context(
         "ms": round(elapsed_ms + ms_out + ms_in, 2),
         "row_count": len(rows),
     }
+
+
+def record_action(
+    incident_id: str,
+    action_id: str,
+    action_type: str,
+    target_id: str,
+    status: str = "PROPOSED",
+    mode: str = "AUTO",
+    policy_decision: str = "AUTO",
+    policy_reason: str = "",
+    graph: Graph | None = None,
+) -> dict[str, Any]:
+    """Record a containment action node linked to an incident via TOOK relationship."""
+    now_ts: str = datetime.datetime.now(datetime.UTC).isoformat()
+    params: dict[str, Any] = {
+        "inc": incident_id,
+        "aid": action_id,
+        "type": action_type,
+        "target": target_id,
+        "status": status,
+        "mode": mode,
+        "decision": policy_decision,
+        "reason": policy_reason,
+        "ts": now_ts,
+    }
+    _, elapsed_ms = run_rw(Q_RECORD_ACTION, params, graph=graph)
+    return {
+        "action_id": action_id,
+        "incident_id": incident_id,
+        "type": action_type,
+        "target_id": target_id,
+        "status": status,
+        "mode": mode,
+        "policy_decision": policy_decision,
+        "policy_reason": policy_reason,
+        "created_at": now_ts,
+        "ms": elapsed_ms,
+    }
+
+
+def get_action(
+    action_id: str,
+    graph: Graph | None = None,
+) -> dict[str, Any] | None:
+    """Retrieve an Action node by ID with current execution and approval status."""
+    rows, _ = run_ro(Q_GET_ACTION, {"aid": action_id}, graph=graph)
+    if not rows or rows[0][0] is None:
+        return None
+    r = rows[0]
+    return {
+        "id": str(r[0]),
+        "type": str(r[1]),
+        "target_id": str(r[2]),
+        "status": str(r[3]),
+        "mode": str(r[4]) if r[4] is not None else None,
+        "policy_decision": str(r[5]) if r[5] is not None else None,
+        "policy_reason": str(r[6]) if r[6] is not None else "",
+        "created_at": str(r[7]) if r[7] is not None else None,
+        "approved_by": str(r[8]) if r[8] is not None else None,
+        "approved_at": str(r[9]) if r[9] is not None else None,
+        "executed_at": str(r[10]) if r[10] is not None else None,
+        "reversed": bool(r[11]) if r[11] is not None else False,
+    }
+
+
+def set_action_executed(
+    action_id: str,
+    graph: Graph | None = None,
+) -> dict[str, Any]:
+    """Mark an Action node as EXECUTED with execution timestamp."""
+    now_ts: str = datetime.datetime.now(datetime.UTC).isoformat()
+    _, elapsed_ms = run_rw(Q_EXECUTE_ACTION_UPDATE, {"aid": action_id, "ts": now_ts}, graph=graph)
+    return {
+        "action_id": action_id,
+        "status": "EXECUTED",
+        "executed_at": now_ts,
+        "ms": elapsed_ms,
+    }
+
+
+def approve_action(
+    action_id: str,
+    approved_by: str = "security-lead",
+    graph: Graph | None = None,
+) -> dict[str, Any]:
+    """Mark an Action node as approved by setting approved_by and approved_at."""
+    now_ts: str = datetime.datetime.now(datetime.UTC).isoformat()
+    _, elapsed_ms = run_rw(
+        Q_APPROVE_ACTION,
+        {"aid": action_id, "approved_by": approved_by, "ts": now_ts},
+        graph=graph,
+    )
+    return {
+        "action_id": action_id,
+        "approved_by": approved_by,
+        "approved_at": now_ts,
+        "ms": elapsed_ms,
+    }
+
