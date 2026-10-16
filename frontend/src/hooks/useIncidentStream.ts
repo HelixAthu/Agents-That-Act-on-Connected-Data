@@ -44,10 +44,10 @@ export function useIncidentStream() {
 
       try {
         const { incident_id } = await createIncident(scenarioId, mode, autoApprove);
-        const eventSource = new EventSource(`/incidents/${incident_id}/events`);
+        const eventSource = new EventSource(`/incidents/${incident_id}/stream`);
         eventSourceRef.current = eventSource;
 
-        eventSource.onmessage = (msgEvent) => {
+        const handleMessage = (msgEvent: MessageEvent) => {
           try {
             const agentEvent: AgentEvent = JSON.parse(msgEvent.data);
             dispatchEvent(agentEvent);
@@ -58,6 +58,26 @@ export function useIncidentStream() {
             console.error("Failed to parse SSE event message:", err);
           }
         };
+
+        const EVENT_TYPES = [
+          "message",
+          "incident_started",
+          "thought",
+          "tool_call",
+          "graph_visit",
+          "tool_result",
+          "risk_update",
+          "approval_required",
+          "action",
+          "verification",
+          "final_report",
+          "error",
+        ];
+
+        EVENT_TYPES.forEach((type) => {
+          eventSource.addEventListener(type, handleMessage as EventListener);
+        });
+        eventSource.onmessage = handleMessage;
 
         eventSource.onerror = (err) => {
           console.error("SSE stream encountered an error:", err);
