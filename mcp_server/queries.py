@@ -116,6 +116,57 @@ MATCH (a:Action {id: $aid})
 SET a.approved_by = $approved_by, a.approved_at = $ts
 """
 
+Q_ROLLBACK_ACTION_ID = "Q-ROLLBACK-ACTION"
+Q_ROLLBACK_ACTION = """
+MATCH (a:Action {id: $aid})
+SET a.status = 'ROLLED_BACK', a.reversed = true, a.rolled_back_at = $ts
+"""
+
+Q_GET_TEAMS_ID = "Q-GET-TEAMS"
+Q_GET_TEAMS = """
+MATCH (t:Team) WHERE t.id IN $ids
+RETURN t.id AS id, t.name AS name, t.slack_channel AS slack_channel, t.email AS email
+"""
+
+Q_RECORD_NOTIFICATION_ID = "Q-RECORD-NOTIFICATION"
+Q_RECORD_NOTIFICATION = """
+MERGE (i:Incident {id: $inc})
+CREATE (a:Action {
+    id: $aid,
+    type: 'NOTIFY_OWNER',
+    target_id: $target,
+    status: 'EXECUTED',
+    mode: 'AUTO',
+    policy_decision: 'AUTO',
+    policy_reason: 'owner notification is always permitted',
+    created_at: $ts,
+    executed_at: $ts,
+    reversed: false
+})
+CREATE (i)-[:TOOK]->(a)
+"""
+
+Q_CREATE_FINDING_ID = "Q-CREATE-FINDING"
+Q_CREATE_FINDING = """
+MERGE (i:Incident {id: $inc})
+CREATE (f:Finding {
+    id: $fid,
+    kind: $kind,
+    summary: $summary,
+    risk_score: $risk,
+    created_at: $ts
+})
+CREATE (i)-[:FOUND]->(f)
+"""
+
+Q_LINK_FINDING_EVIDENCE_ID = "Q-LINK-FINDING-EVIDENCE"
+Q_LINK_FINDING_EVIDENCE = """
+MATCH (f:Finding {id: $fid})
+UNWIND $evidence_ids AS eid
+MATCH (e {id: eid})
+CREATE (f)-[:EVIDENCED_BY]->(e)
+"""
+
 
 def build_impact_query(max_hops: int = 3, critical_only: bool = False) -> str:
     """Build the reverse failure impact Cypher query with validated hop bound."""
@@ -592,4 +643,103 @@ def approve_action(
         "approved_at": now_ts,
         "ms": elapsed_ms,
     }
+
+
+def rollback_action_node(
+    action_id: str,
+    graph: Graph | None = None,
+) -> dict[str, Any]:
+    """Mark an Action node as ROLLED_BACK with reversed=true and rolled_back_at timestamp."""
+    now_ts: str = datetime.datetime.now(datetime.UTC).isoformat()
+    _, elapsed_ms = run_rw(Q_ROLLBACK_ACTION, {"aid": action_id, "ts": now_ts}, graph=graph)
+    return {
+        "action_id": action_id,
+        "status": "ROLLED_BACK",
+        "reversed": True,
+        "rolled_back_at": now_ts,
+        "ms": elapsed_ms,
+    }
+
+
+def get_teams_by_ids(
+    team_ids: list[str],
+    graph: Graph | None = None,
+) -> list[dict[str, Any]]:
+    """Retrieve Team nodes by IDs including name and slack_channel."""
+    if not team_ids:
+        return []
+    rows, _ = run_ro(Q_GET_TEAMS, {"ids": team_ids}, graph=graph)
+    teams: list[dict[str, Any]] = []
+    for r in rows:
+        teams.append({
+            "id": str(r[0]),
+            "name": str(r[1]) if r[1] is not None else "",
+            "slack_channel": str(r[2]) if r[2] is not None else "",
+            "email": str(r[3]) if r[3] is not None else "",
+        })
+    return teams
+
+
+def record_notification_action(
+    incident_id: str,
+    action_id: str,
+    target_id: str,
+    graph: Graph | None = None,
+) -> dict[str, Any]:
+    """Record an Action node of type NOTIFY_OWNER in the audit trail."""
+    now_ts: str = datetime.datetime.now(datetime.UTC).isoformat()
+    _, elapsed_ms = run_rw(
+        Q_RECORD_NOTIFICATION,
+        {"inc": incident_id, "aid": action_id, "target": target_id, "ts": now_ts},
+        graph=graph,
+    )
+    return {
+        "action_id": action_id,
+        "incident_id": incident_id,
+        "type": "NOTIFY_OWNER",
+        "target_id": target_id,
+        "status": "EXECUTED",
+        "ms": elapsed_ms,
+    }
+
+
+def create_finding(
+    incident_id: str,
+    finding_id: str,
+    kind: str,
+    summary: str,
+    risk_score: float | None = None,
+    evidence_ids: list[str] | None = None,
+    graph: Graph | None = None,
+) -> dict[str, Any]:
+    """Create a Finding node linked to an Incident and link to supporting evidence nodes."""
+    now_ts: str = datetime.datetime.now(datetime.UTC).isoformat()
+    params: dict[str, Any] = {
+        "inc": incident_id,
+        "fid": finding_id,
+        "kind": kind,
+        "summary": summary,
+        "risk": risk_score,
+        "ts": now_ts,
+    }
+    _, elapsed_ms = run_rw(Q_CREATE_FINDING, params, graph=graph)
+
+    valid_evidence: list[str] = [e for e in (evidence_ids or []) if e and isinstance(e, str)]
+    if valid_evidence:
+        run_rw(
+            Q_LINK_FINDING_EVIDENCE,
+            {"fid": finding_id, "evidence_ids": valid_evidence},
+            graph=graph,
+        )
+
+    return {
+        "finding_id": finding_id,
+        "incident_id": incident_id,
+        "kind": kind,
+        "summary": summary,
+        "risk_score": risk_score,
+        "evidence_ids": valid_evidence,
+        "ms": elapsed_ms,
+    }
+
 

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
+import json
 import logging
+import os
 import re
 import uuid
 from typing import Any
@@ -13,6 +16,18 @@ from mcp.server.fastmcp import FastMCP
 from mcp_server.db import run_ro
 from mcp_server.models import ErrorCode, VisitKind, format_error, format_success
 from mcp_server.policy import ContainmentAction, PolicyDecision, evaluate_containment_policy
+from mcp_server.queries import (
+    create_finding,
+    get_teams_by_ids,
+    isolate_node,
+    record_action,
+    record_notification_action,
+    revoke_role,
+    rollback_action_node,
+    rollback_node,
+    rollback_role,
+    set_action_executed,
+)
 from mcp_server.queries import (
     find_attack_paths as execute_find_attack_paths,
 )
@@ -24,14 +39,6 @@ from mcp_server.queries import (
 )
 from mcp_server.queries import (
     get_failure_impact as execute_failure_impact,
-)
-from mcp_server.queries import (
-    isolate_node,
-    record_action,
-    revoke_role,
-    rollback_node,
-    rollback_role,
-    set_action_executed,
 )
 from mcp_server.queries import (
     rank_critical_components as execute_criticality_ranking,
@@ -465,6 +472,209 @@ async def execute_containment(action_id: str) -> str:
     except Exception as err:
         logger.exception("Error executing containment for '%s'", cleaned_action_id)
         return format_error(ErrorCode.DB_ERROR, f"Database error executing containment: {err}")
+
+
+@mcp.tool()
+async def rollback_action(action_id: str) -> str:
+    """Roll back a previously executed containment action, restoring the graph to its prior state.
+
+    Use when: containment was mistaken, incident has concluded, or testing containment reversal.
+    Do NOT use when: proposing actions or handling non-executed actions.
+    """
+    if not action_id or not isinstance(action_id, str) or not action_id.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "action_id must be a non-empty string")
+
+    cleaned_action_id: str = action_id.strip()
+    try:
+        action = fetch_action(cleaned_action_id)
+        if action is None:
+            return format_error(ErrorCode.NOT_FOUND, f"Action '{cleaned_action_id}' not found")
+
+        current_status: str = action.get("status", "")
+        if current_status != "EXECUTED":
+            return format_error(
+                ErrorCode.INVALID_INPUT,
+                f"Action '{cleaned_action_id}' cannot be rolled back because status is '{current_status}'",
+            )
+
+        action_type: str = action.get("type", "")
+        target_id: str = action.get("target_id", "")
+        source_id: str = (
+            target_id.split("|", 1)[0]
+            if action_type == ContainmentAction.REVOKE_ROLE.value
+            else target_id
+        )
+
+        async with _CONTAINMENT_LOCK:
+            if action_type == ContainmentAction.ISOLATE_NODE.value:
+                rollback_node(target_id)
+            elif action_type == ContainmentAction.REVOKE_ROLE.value:
+                rollback_role(target_id)
+
+            post_res = execute_find_attack_paths(source_id=source_id, max_hops=6)
+            targets_after: list[str] = sorted({p["target"] for p in post_res.get("paths", [])})
+
+            rollback_action_node(cleaned_action_id)
+
+        data: dict[str, Any] = {
+            "action_id": cleaned_action_id,
+            "status": "ROLLED_BACK",
+            "targets_after": targets_after,
+        }
+
+        edge_keys: list[str] = []
+        if action_type == ContainmentAction.REVOKE_ROLE.value:
+            svc_part, role_part = target_id.split("|", 1)
+            edge_keys.append(f"{svc_part}|ASSUMES_ROLE|{role_part}")
+
+        visit = {
+            "kind": VisitKind.ACTION.value,
+            "node_ids": [source_id],
+            "edge_keys": edge_keys,
+        }
+        evidence = {
+            "query_id": "Q-ROLLBACK-ACTION",
+            "cypher": "ROLLBACK_CONTAINMENT_WRITE AND SET Action.status = 'ROLLED_BACK'",
+            "params": {"action_id": cleaned_action_id},
+            "ms": 1.0,
+            "row_count": 1,
+        }
+        return format_success(data=data, visit=visit, evidence=evidence)
+
+    except Exception as err:
+        logger.exception("Error rolling back action '%s'", cleaned_action_id)
+        return format_error(ErrorCode.DB_ERROR, f"Database error rolling back action: {err}")
+
+
+@mcp.tool()
+def notify_owners(incident_id: str, team_ids: list[str], message: str) -> str:
+    """Notify owning teams of impacted components or containment actions via simulated Outbox.
+
+    Use when: alerting service owners about active containment, outages, or security findings.
+    Do NOT use when: modifying infrastructure graph topology or computing risk.
+    """
+    if not incident_id or not isinstance(incident_id, str) or not incident_id.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "incident_id must be a non-empty string")
+    if not team_ids or not isinstance(team_ids, list):
+        return format_error(ErrorCode.INVALID_INPUT, "team_ids must be a non-empty list of strings")
+    if not message or not isinstance(message, str) or not message.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "message must be a non-empty string")
+
+    cleaned_incident: str = incident_id.strip()
+    cleaned_teams: list[str] = [t.strip() for t in team_ids if isinstance(t, str) and t.strip()]
+    if not cleaned_teams:
+        return format_error(ErrorCode.INVALID_INPUT, "team_ids must contain valid non-empty string team IDs")
+
+    try:
+        teams_data = get_teams_by_ids(cleaned_teams)
+        notified: list[dict[str, str]] = [
+            {"team_id": t["id"], "slack_channel": t["slack_channel"]}
+            for t in teams_data
+        ]
+
+        found_ids = {t["team_id"] for t in notified}
+        for tid in cleaned_teams:
+            if tid not in found_ids:
+                notified.append({"team_id": tid, "slack_channel": f"#{tid.replace('team-', '')}-alerts"})
+
+        outbox_file: str = os.getenv("OUTBOX_PATH", "./outbox/notifications.jsonl")
+        outbox_dir: str = os.path.dirname(os.path.abspath(outbox_file))
+        os.makedirs(outbox_dir, exist_ok=True)
+
+        now_ts: str = datetime.datetime.now(datetime.UTC).isoformat()
+        with open(outbox_file, "a", encoding="utf-8") as f:
+            for item in notified:
+                entry = {
+                    "timestamp": now_ts,
+                    "incident_id": cleaned_incident,
+                    "team_id": item["team_id"],
+                    "slack_channel": item["slack_channel"],
+                    "message": message.strip(),
+                }
+                f.write(json.dumps(entry) + "\n")
+
+        action_id: str = f"act-{uuid.uuid4().hex[:8]}"
+        record_notification_action(
+            incident_id=cleaned_incident,
+            action_id=action_id,
+            target_id=",".join(cleaned_teams),
+        )
+
+        data: dict[str, Any] = {"notified": notified}
+        visit = {
+            "kind": VisitKind.ACTION.value,
+            "node_ids": [t["team_id"] for t in notified],
+            "edge_keys": [],
+        }
+        evidence = {
+            "query_id": "Q-NOTIFY-OWNERS",
+            "cypher": "RECORD_ACTION (Incident-[:TOOK]->Action {type:'NOTIFY_OWNER'})",
+            "params": {"incident_id": cleaned_incident, "team_ids": cleaned_teams},
+            "ms": 1.0,
+            "row_count": len(notified),
+        }
+        return format_success(data=data, visit=visit, evidence=evidence)
+
+    except Exception as err:
+        logger.exception("Error in notify_owners for incident '%s'", cleaned_incident)
+        return format_error(ErrorCode.DB_ERROR, f"Database error notifying owners: {err}")
+
+
+@mcp.tool()
+def record_finding(
+    incident_id: str,
+    kind: str,
+    summary: str,
+    evidence_ids: list[str] | None = None,
+    risk_score: float | None = None,
+) -> str:
+    """Record an analytical finding with supporting graph evidence linked to an incident audit trail.
+
+    Use when: capturing an investigation finding (e.g., EXPLOITABLE_VULNERABILITY, ATTACK_PATH_DETECTED,
+    BLAST_RADIUS_EVALUATED, MITIGATION_STATUS) with evidence IDs.
+    Do NOT use when: executing containment actions or notifying teams.
+    """
+    if not incident_id or not isinstance(incident_id, str) or not incident_id.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "incident_id must be a non-empty string")
+    if not kind or not isinstance(kind, str) or not kind.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "kind must be a non-empty string")
+    if not summary or not isinstance(summary, str) or not summary.strip():
+        return format_error(ErrorCode.INVALID_INPUT, "summary must be a non-empty string")
+
+    cleaned_incident: str = incident_id.strip()
+    cleaned_kind: str = kind.strip().upper()
+    cleaned_summary: str = summary.strip()
+    evidence_list: list[str] = [e.strip() for e in (evidence_ids or []) if isinstance(e, str) and e.strip()]
+
+    try:
+        finding_id: str = f"finding-{uuid.uuid4().hex[:8]}"
+        create_finding(
+            incident_id=cleaned_incident,
+            finding_id=finding_id,
+            kind=cleaned_kind,
+            summary=cleaned_summary,
+            risk_score=risk_score,
+            evidence_ids=evidence_list,
+        )
+
+        data: dict[str, Any] = {"finding_id": finding_id}
+        visit = {
+            "kind": VisitKind.INSPECT.value,
+            "node_ids": evidence_list,
+            "edge_keys": [],
+        }
+        evidence = {
+            "query_id": "Q-CREATE-FINDING",
+            "cypher": "CREATE (i)-[:FOUND]->(f:Finding)-[:EVIDENCED_BY]->(e)",
+            "params": {"incident_id": cleaned_incident, "finding_id": finding_id},
+            "ms": 1.0,
+            "row_count": 1,
+        }
+        return format_success(data=data, visit=visit, evidence=evidence)
+
+    except Exception as err:
+        logger.exception("Error recording finding for incident '%s'", cleaned_incident)
+        return format_error(ErrorCode.DB_ERROR, f"Database error recording finding: {err}")
 
 
 @mcp.tool()

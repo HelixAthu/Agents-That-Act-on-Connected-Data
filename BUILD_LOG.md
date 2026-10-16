@@ -249,40 +249,46 @@ Log of task execution, command outputs, and commit hashes for verification.
 
 ---
 
-## T6. MCP Write Tools & Containment (Part 1: Propose & Execute)
+## T6. MCP Write Tools & Containment
 
 - **Commits:**
-  - `feat(mcp): propose and execute containment with action state machine`
+  - `8165796`: `feat(mcp): propose and execute containment with action state machine`
+  - `feat(mcp): rollback, notify-owners and record-finding tools`
 - **Acceptance Output:**
   ```bash
   $ pytest -v tests/test_mcp_tools.py
   ============================= test session starts ==============================
-  collected 20 items
+  collected 24 items
 
-  tests/test_mcp_tools.py::test_get_component_context_success PASSED       [  5%]
-  tests/test_mcp_tools.py::test_get_component_context_not_found PASSED     [ 10%]
-  tests/test_mcp_tools.py::test_get_component_context_invalid_input PASSED [ 15%]
-  tests/test_mcp_tools.py::test_get_failure_impact_tool PASSED             [ 20%]
-  tests/test_mcp_tools.py::test_get_failure_impact_invalid_hops PASSED     [ 25%]
-  tests/test_mcp_tools.py::test_find_attack_paths_tool PASSED              [ 30%]
-  tests/test_mcp_tools.py::test_find_attack_paths_invalid_hops PASSED      [ 35%]
-  tests/test_mcp_tools.py::test_rank_critical_components_tool PASSED       [ 40%]
-  tests/test_mcp_tools.py::test_rank_critical_components_invalid_top_n PASSED [ 45%]
-  tests/test_mcp_tools.py::test_run_readonly_cypher_success PASSED         [ 50%]
-  tests/test_mcp_tools.py::test_run_readonly_cypher_policy_denied PASSED   [ 55%]
-  tests/test_mcp_tools.py::test_compute_risk_tool_payments_gateway_success PASSED [ 60%]
-  tests/test_mcp_tools.py::test_compute_risk_tool_config_success PASSED   [ 65%]
-  tests/test_mcp_tools.py::test_compute_risk_tool_not_found PASSED        [ 70%]
-  tests/test_mcp_tools.py::test_compute_risk_tool_invalid_input PASSED    [ 75%]
-  tests/test_mcp_tools.py::test_propose_containment_revoke_role_auto_simulation PASSED [ 80%]
-  tests/test_mcp_tools.py::test_execute_containment_revoke_role_success PASSED [ 85%]
-  tests/test_mcp_tools.py::test_propose_and_execute_isolate_node_approval_required PASSED [ 90%]
-  tests/test_mcp_tools.py::test_propose_and_execute_isolate_node_denied PASSED [ 95%]
-  tests/test_mcp_tools.py::test_containment_invalid_inputs PASSED          [100%]
+  tests/test_mcp_tools.py::test_get_component_context_success PASSED       [  4%]
+  tests/test_mcp_tools.py::test_get_component_context_not_found PASSED     [  8%]
+  tests/test_mcp_tools.py::test_get_component_context_invalid_input PASSED [ 12%]
+  tests/test_mcp_tools.py::test_get_failure_impact_tool PASSED             [ 16%]
+  tests/test_mcp_tools.py::test_get_failure_impact_invalid_hops PASSED     [ 20%]
+  tests/test_mcp_tools.py::test_find_attack_paths_tool PASSED              [ 25%]
+  tests/test_mcp_tools.py::test_find_attack_paths_invalid_hops PASSED      [ 29%]
+  tests/test_mcp_tools.py::test_rank_critical_components_tool PASSED       [ 33%]
+  tests/test_mcp_tools.py::test_rank_critical_components_invalid_top_n PASSED [ 37%]
+  tests/test_mcp_tools.py::test_run_readonly_cypher_success PASSED         [ 41%]
+  tests/test_mcp_tools.py::test_run_readonly_cypher_policy_denied PASSED   [ 45%]
+  tests/test_mcp_tools.py::test_compute_risk_tool_payments_gateway_success PASSED [ 50%]
+  tests/test_mcp_tools.py::test_compute_risk_tool_config_success PASSED   [ 54%]
+  tests/test_mcp_tools.py::test_compute_risk_tool_not_found PASSED        [ 58%]
+  tests/test_mcp_tools.py::test_compute_risk_tool_invalid_input PASSED    [ 62%]
+  tests/test_mcp_tools.py::test_propose_containment_revoke_role_auto_simulation PASSED [ 66%]
+  tests/test_mcp_tools.py::test_execute_containment_revoke_role_success PASSED [ 70%]
+  tests/test_mcp_tools.py::test_propose_and_execute_isolate_node_approval_required PASSED [ 75%]
+  tests/test_mcp_tools.py::test_propose_and_execute_isolate_node_denied PASSED [ 79%]
+  tests/test_mcp_tools.py::test_containment_invalid_inputs PASSED          [ 83%]
+  tests/test_mcp_tools.py::test_rollback_action_tool_success_and_errors PASSED [ 87%]
+  tests/test_mcp_tools.py::test_notify_owners_tool_appends_outbox_and_records_action PASSED [ 91%]
+  tests/test_mcp_tools.py::test_record_finding_tool_creates_finding_with_evidence PASSED [ 95%]
+  tests/test_mcp_tools.py::test_notify_and_finding_input_validations PASSED [100%]
 
-  ============================== 20 passed in 1.25s ==============================
+  ============================== 24 passed in 1.48s ==============================
   ```
-- **Status:** IN PROGRESS (propose and execute implemented; rollback and findings next)
+- **Status:** DONE (Tools 6, 7, 8, 9, 10 fully implemented and tested)
+
 
 
 

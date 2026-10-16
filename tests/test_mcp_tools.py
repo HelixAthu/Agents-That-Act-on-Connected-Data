@@ -1,6 +1,7 @@
 """Tests for MCP graph tools, envelope serialization, and error codes."""
 
 import json
+import os
 
 import pytest
 
@@ -15,8 +16,11 @@ from mcp_server.server import (
     find_attack_paths,
     get_component_context,
     get_failure_impact,
+    notify_owners,
     propose_containment,
     rank_critical_components,
+    record_finding,
+    rollback_action,
     run_readonly_cypher,
 )
 from seed.seed_graph import seed_graph
@@ -351,5 +355,100 @@ async def test_containment_invalid_inputs() -> None:
     # Execute empty string
     res_empty_action = await execute_containment("")
     assert json.loads(res_empty_action)["error"]["code"] == "INVALID_INPUT"
+
+
+@pytest.mark.asyncio
+async def test_rollback_action_tool_success_and_errors() -> None:
+    """Assert Tool 8 rollback_action restores graph reachability and prevents double rollbacks."""
+    # Setup an executed action
+    res_prop = await propose_containment(
+        action="REVOKE_ROLE",
+        target_id="svc-payments-gateway|role-storage-manager",
+        incident_id="inc-test-rb",
+    )
+    act_id = json.loads(res_prop)["data"]["action_id"]
+    await execute_containment(act_id)
+
+    # Roll back the executed action
+    res_rb = await rollback_action(act_id)
+    payload_rb = json.loads(res_rb)
+    assert payload_rb["ok"] is True
+    data_rb = payload_rb["data"]
+    assert data_rb["status"] == "ROLLED_BACK"
+    assert "db-customer-profile" in data_rb["targets_after"]
+    assert "db-user-billing" in data_rb["targets_after"]
+
+    # Rolling back an already rolled-back action must fail
+    res_rb_again = await rollback_action(act_id)
+    payload_rb_again = json.loads(res_rb_again)
+    assert payload_rb_again["ok"] is False
+    assert payload_rb_again["error"]["code"] == "INVALID_INPUT"
+
+    # Non-existent action ID
+    res_missing = await rollback_action("act-missing")
+    assert json.loads(res_missing)["error"]["code"] == "NOT_FOUND"
+
+
+def test_notify_owners_tool_appends_outbox_and_records_action(tmp_path) -> None:
+    """Assert Tool 9 notify_owners queries team channels, writes to outbox, and records an action."""
+    test_outbox = str(tmp_path / "test_notifications.jsonl")
+    os.environ["OUTBOX_PATH"] = test_outbox
+
+    try:
+        res = notify_owners(
+            incident_id="inc-test-notify-01",
+            team_ids=["team-payments", "team-commerce"],
+            message="Critical containment action taken on payments gateway",
+        )
+        payload = json.loads(res)
+        assert payload["ok"] is True
+        notified = payload["data"]["notified"]
+        assert len(notified) == 2
+        assert notified[0]["slack_channel"] == "#payments-oncall"
+        assert notified[1]["slack_channel"] == "#commerce-oncall"
+
+        # Verify outbox file has appended lines
+        assert os.path.exists(test_outbox)
+        with open(test_outbox, "r", encoding="utf-8") as f:
+            lines = [json.loads(line) for line in f if line.strip()]
+        assert len(lines) == 2
+        assert lines[0]["team_id"] == "team-payments"
+        assert lines[0]["slack_channel"] == "#payments-oncall"
+        assert "payments gateway" in lines[0]["message"]
+    finally:
+        os.environ.pop("OUTBOX_PATH", None)
+
+
+def test_record_finding_tool_creates_finding_with_evidence() -> None:
+    """Assert Tool 10 record_finding links analytical finding to incident and evidence nodes."""
+    res = record_finding(
+        incident_id="inc-test-finding-01",
+        kind="EXPLOITABLE_VULNERABILITY",
+        summary="Remote code execution detected on svc-payments-gateway",
+        evidence_ids=["svc-payments-gateway", "vuln-001"],
+        risk_score=0.828,
+    )
+    payload = json.loads(res)
+    assert payload["ok"] is True
+    data = payload["data"]
+    assert data["finding_id"].startswith("finding-")
+
+    visit = payload["visit"]
+    assert "svc-payments-gateway" in visit["node_ids"]
+    assert "vuln-001" in visit["node_ids"]
+
+
+def test_notify_and_finding_input_validations() -> None:
+    """Assert input validations for notify_owners and record_finding."""
+    # Notify owners validations
+    assert json.loads(notify_owners("", ["team-payments"], "msg"))["error"]["code"] == "INVALID_INPUT"
+    assert json.loads(notify_owners("inc-1", [], "msg"))["error"]["code"] == "INVALID_INPUT"
+    assert json.loads(notify_owners("inc-1", ["team-payments"], ""))["error"]["code"] == "INVALID_INPUT"
+
+    # Record finding validations
+    assert json.loads(record_finding("", "KIND", "summary"))["error"]["code"] == "INVALID_INPUT"
+    assert json.loads(record_finding("inc-1", "", "summary"))["error"]["code"] == "INVALID_INPUT"
+    assert json.loads(record_finding("inc-1", "KIND", ""))["error"]["code"] == "INVALID_INPUT"
+
 
 
