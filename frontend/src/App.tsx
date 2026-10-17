@@ -27,6 +27,7 @@ export default function App(): JSX.Element {
   const [resetting, setResetting] = useState<boolean>(false);
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
   const [executionMode, setExecutionMode] = useState<"live" | "mock" | "replay">("live");
+  const [autoApprove, setAutoApprove] = useState<boolean>(false);
   const [resetKey, setResetKey] = useState<number>(0);
 
   const handleReset = async () => {
@@ -67,7 +68,12 @@ export default function App(): JSX.Element {
 
         {/* Agent Execution Error Alert */}
         {incidentState.status === "error" && incidentState.error && (
-          <div className="rounded-lg border border-rose-500/80 bg-rose-950/40 p-2.5 text-xs text-rose-200 space-y-1.5 animate-in fade-in">
+          <div
+            className={
+              "rounded-lg border border-rose-500/80 bg-rose-950/40 p-2.5 text-xs text-rose-200 " +
+              "space-y-1.5 animate-in fade-in"
+            }
+          >
             <div className="flex items-center gap-1.5 font-bold text-rose-300">
               <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
               <span>Agent Execution Error</span>
@@ -77,8 +83,8 @@ export default function App(): JSX.Element {
             </p>
             {incidentState.error.includes("Gemini API key") && (
               <p className="text-[10px] text-muted-foreground pt-1 border-t border-rose-500/30">
-                Tip: Add a valid Gemini key (AIzaSy...) in <code className="text-amber-300">.env</code>, or switch to{" "}
-                <strong>Mock Agent</strong> or <strong>Replay</strong> mode.
+                Tip: Add a valid Gemini key (AIzaSy...) in <code className="text-amber-300">.env</code>, or switch to
+                {" "}<strong>Mock Agent</strong> or <strong>Replay</strong> mode.
               </p>
             )}
           </div>
@@ -125,6 +131,27 @@ export default function App(): JSX.Element {
           </div>
         </div>
 
+        {/* Auto-Approve Toggle */}
+        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Approval Gate
+            </span>
+            <span className="text-[11px] text-foreground">
+              {autoApprove ? "Auto-Approve" : "Manual Gate (Wait)"}
+            </span>
+          </div>
+          <Button
+            variant={autoApprove ? "default" : "outline"}
+            size="sm"
+            className="h-6 text-[10px] px-2 font-semibold"
+            onClick={() => setAutoApprove(!autoApprove)}
+            disabled={incidentState.status === "running" || executionMode === "replay"}
+          >
+            {autoApprove ? "Auto: ON" : "Manual"}
+          </Button>
+        </div>
+
         {/* Scenario execution triggers */}
         <div className="grid grid-cols-3 gap-2">
           {(["A", "B", "C"] as const).map((scId) => (
@@ -136,7 +163,7 @@ export default function App(): JSX.Element {
                 if (executionMode === "replay") {
                   startReplay(scId.toLowerCase());
                 } else {
-                  startIncident(scId, executionMode, false);
+                  startIncident(scId, executionMode, autoApprove);
                 }
               }}
               disabled={incidentState.status === "running"}

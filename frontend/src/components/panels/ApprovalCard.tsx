@@ -17,6 +17,7 @@ export interface ApprovalCardProps {
  */
 export function ApprovalCard({ approval, onApprove, className }: ApprovalCardProps): JSX.Element | null {
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!approval) {
     return null;
@@ -25,9 +26,11 @@ export function ApprovalCard({ approval, onApprove, className }: ApprovalCardPro
   const handleApprove = async () => {
     try {
       setSubmitting(true);
+      setErrorMsg(null);
       await onApprove(approval.action_id);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to approve action:", err);
+      setErrorMsg(err.message || "Approval failed. The request may have timed out.");
     } finally {
       setSubmitting(false);
     }
@@ -100,6 +103,12 @@ export function ApprovalCard({ approval, onApprove, className }: ApprovalCardPro
           <Check className="h-3.5 w-3.5 mr-1" />
           {submitting ? "Approving Action..." : "Approve Containment"}
         </Button>
+
+        {errorMsg && (
+          <div className="rounded bg-rose-950/90 border border-rose-800 p-2 text-[11px] text-rose-300">
+            {errorMsg}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

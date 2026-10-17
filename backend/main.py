@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -24,7 +25,7 @@ from backend.agent_mock import MockAgent
 from backend.events import Event, EventBus, EventType
 from backend.mcp_bridge import MCPBridge
 from backend.scenarios import get_scenario, list_scenarios
-from mcp_server.queries import approve_action, get_graph_health, get_ui_graph
+from mcp_server.queries import approve_action, get_graph_health, get_ui_graph, run_ro
 from seed.seed_graph import seed_graph
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -183,9 +184,11 @@ async def _run_agent_task(
             loop = asyncio.get_running_loop()
             pending_approvals[action_id] = loop.create_future()
         future = pending_approvals[action_id]
+        timeout_s = float(os.getenv("APPROVAL_TIMEOUT_S", "300"))
         try:
-            return await asyncio.wait_for(future, timeout=60.0)
+            return await asyncio.wait_for(future, timeout=timeout_s)
         except TimeoutError:
+            logger.warning("Approval for action '%s' timed out after %s seconds", action_id, timeout_s)
             return False
         finally:
             pending_approvals.pop(action_id, None)
@@ -351,17 +354,32 @@ async def approve_incident_action(
     )
     future = pending_approvals.get(action_id)
     if future is None:
+        # Check if the action exists in database and was already approved or executed (idempotent retry)
+        rows, _ = run_ro(
+            "MATCH (a:Action {id: $aid}) RETURN a.id, a.approved_by, a.status",
+            {"aid": action_id},
+        )
+        if rows:
+            approved_by = str(rows[0][1] or "")
+            status_str = str(rows[0][2] or "")
+            if approved_by or status_str in ("EXECUTED", "APPROVED", "ROLLED_BACK"):
+                return ActionApproveResponse(
+                    ok=True,
+                    action_id=action_id,
+                    approved_by=approved_by or approve_req.approved_by,
+                )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
                 f"No pending approval found for action '{action_id}'. "
-                f"Known pending: {list(pending_approvals.keys())}"
+                f"The approval request may have timed out or the incident has already finished."
             ),
         )
     if future.done():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Approval for action '{action_id}' has already been completed.",
+        return ActionApproveResponse(
+            ok=True,
+            action_id=action_id,
+            approved_by=approve_req.approved_by,
         )
 
     # Record approval in the database

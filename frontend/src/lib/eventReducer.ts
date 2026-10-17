@@ -263,12 +263,14 @@ export function reduceAgentEvent(
         riskScore = Number(finalReport.risk_score);
       }
       status = "completed";
+      pendingApproval = null;
       break;
     }
 
     case "error": {
       error = event.data?.message || "Incident run encountered an error.";
       status = "error";
+      pendingApproval = null;
       break;
     }
 
